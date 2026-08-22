@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 
+
 public class Astronaut : MonoBehaviour
 {
     [SerializeField] private TextMeshPro _text;
