@@ -10,6 +10,8 @@ public class GameHud : MonoBehaviour
     [SerializeField] TMP_Text _feedback;
     [SerializeField] Button _workButton;
     [SerializeField] Button _snackButton;
+    [SerializeField] WorkMinigamesView _workGames;
+    [SerializeField] SnackShopView _snackShop;
 
     void Awake()
     {
@@ -30,6 +32,8 @@ public class GameHud : MonoBehaviour
             _snackButton.onClick.AddListener(OnSnack);
         }
 
+        EnsureWorkGames();
+        EnsureSnackShop();
         Refresh();
     }
 
@@ -48,28 +52,142 @@ public class GameHud : MonoBehaviour
 
     void OnWork()
     {
-        if (!PetActions.TryWork(GameSession.State))
+        EnsureWorkGames();
+        if (_workGames == null || !_workGames.IsReady)
         {
+            SetFeedback("Не вышло открыть подработку");
             return;
         }
 
-        GameSession.Persist();
-        SetFeedback("Подработал. +15 монет");
+        _workGames.Open();
+    }
+
+    void OnMinigameFinished(int coins)
+    {
+        if (PetActions.TryEarn(GameSession.State, coins))
+        {
+            GameSession.Persist();
+            SetFeedback("Подработал. +" + coins + " монет");
+        }
+        else
+        {
+            SetFeedback("В этот раз без монет. Попробуй ещё");
+        }
+
         Refresh();
     }
 
     void OnSnack()
     {
-        if (!PetActions.TrySnack(GameSession.State))
+        EnsureSnackShop();
+        if (_snackShop == null || !_snackShop.IsReady)
         {
-            SetFeedback("Не хватает монет на перекус");
-            Refresh();
+            SetFeedback("Не вышло открыть перекус");
             return;
         }
 
+        _snackShop.Open();
+    }
+
+    void OnFoodBought(FoodItem food)
+    {
         GameSession.Persist();
-        SetFeedback("Перекус куплен");
+        SetFeedback(food.Title + ": −" + food.Cost + " монет, +" + food.Hunger + " сытости");
         Refresh();
+    }
+
+    void EnsureWorkGames()
+    {
+        Canvas canvas = FindHudCanvas();
+        if (_workGames == null)
+        {
+            _workGames = GetComponent<WorkMinigamesView>();
+        }
+
+        if (_workGames == null)
+        {
+            _workGames = FindFirstObjectByType<WorkMinigamesView>(FindObjectsInactive.Include);
+        }
+
+        if (_workGames == null)
+        {
+            _workGames = gameObject.AddComponent<WorkMinigamesView>();
+        }
+
+        if (_workGames != null && !_workGames.IsReady && canvas != null)
+        {
+            try
+            {
+                WorkOverlayFactory.Build(canvas.transform, _workGames);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogException(ex);
+                SetFeedback("Не вышло открыть подработку");
+            }
+        }
+
+        if (_workGames != null)
+        {
+            _workGames.Bind(OnMinigameFinished);
+        }
+    }
+
+    void EnsureSnackShop()
+    {
+        Canvas canvas = FindHudCanvas();
+        if (_snackShop == null)
+        {
+            _snackShop = GetComponent<SnackShopView>();
+        }
+
+        if (_snackShop == null)
+        {
+            _snackShop = FindFirstObjectByType<SnackShopView>(FindObjectsInactive.Include);
+        }
+
+        if (_snackShop == null)
+        {
+            _snackShop = gameObject.AddComponent<SnackShopView>();
+        }
+
+        if (_snackShop != null && !_snackShop.IsReady && canvas != null)
+        {
+            try
+            {
+                SnackOverlayFactory.Build(canvas.transform, _snackShop);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogException(ex);
+                SetFeedback("Не вышло открыть перекус");
+            }
+        }
+
+        if (_snackShop != null)
+        {
+            _snackShop.Bind(OnFoodBought);
+        }
+    }
+
+    Canvas FindHudCanvas()
+    {
+        if (_workButton != null)
+        {
+            var fromButton = _workButton.GetComponentInParent<Canvas>();
+            if (fromButton != null)
+            {
+                return fromButton;
+            }
+        }
+
+        var named = GameObject.Find("HudCanvas");
+        if (named != null)
+        {
+            return named.GetComponent<Canvas>();
+        }
+
+        return FindFirstObjectByType<Canvas>();
     }
 
     void Refresh()

@@ -39,6 +39,7 @@ namespace LCT.Editor
             }
 
             SessionState.SetBool(SessionKey, true);
+            EditorApplication.delayCall += FinashkaAndroidGameView.Apply;
             _ = StartAsync();
         }
 

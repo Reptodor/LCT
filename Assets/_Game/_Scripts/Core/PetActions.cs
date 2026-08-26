@@ -14,19 +14,39 @@ public static class PetActions
             return false;
         }
 
-        state.coins += WorkReward;
+        return TryEarn(state, WorkReward);
+    }
+
+    public static bool TryEarn(GameState state, int amount)
+    {
+        if (state == null || amount <= 0)
+        {
+            return false;
+        }
+
+        state.coins += amount;
         return true;
     }
 
     public static bool TrySnack(GameState state)
     {
-        if (state == null || state.coins < SnackCost)
+        return TryBuyFood(state, SnackCost, SnackHunger);
+    }
+
+    public static bool TryBuyFood(GameState state, int cost, int hunger)
+    {
+        if (state == null || cost <= 0 || hunger <= 0)
         {
             return false;
         }
 
-        state.coins -= SnackCost;
-        state.hunger = Mathf.Min(HungerMax, state.hunger + SnackHunger);
+        if (state.coins < cost)
+        {
+            return false;
+        }
+
+        state.coins -= cost;
+        state.hunger = Mathf.Min(HungerMax, state.hunger + hunger);
         return true;
     }
 }

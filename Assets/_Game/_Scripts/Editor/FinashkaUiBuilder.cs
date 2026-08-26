@@ -22,10 +22,15 @@ public static class FinashkaUiBuilder
     static readonly Color Track = new Color(0.08f, 0.14f, 0.07f, 0.45f);
     static readonly Color Fill = new Color(0.86f, 0.58f, 0.08f, 1f);
     static readonly Color Feedback = new Color(1f, 0.97f, 0.88f, 1f);
+    static readonly Color Dim = new Color(0.05f, 0.09f, 0.04f, 0.72f);
+    static readonly Color Sheet = new Color(1f, 0.97f, 0.88f, 0.97f);
+    static readonly Color Need = new Color(0.28f, 0.58f, 0.34f, 1f);
+    static readonly Color Want = new Color(0.93f, 0.64f, 0.18f, 1f);
 
     const string IconsFolder = "Assets/_Game/_Art/Icons";
     const string CoinIconPath = IconsFolder + "/icon-coin.png";
     const string HungerIconPath = IconsFolder + "/icon-hunger.png";
+    const string NeedWantCoverPath = IconsFolder + "/cover-need-want.png";
     const string RoomBgPath = "Assets/_Game/_Art/Backgrounds/finashka-jungle-bg.png";
 
     [MenuItem("Finashka/Rebuild Mobile UI")]
@@ -196,7 +201,7 @@ public static class FinashkaUiBuilder
         tmp.fontSizeMin = min;
         tmp.fontSizeMax = max;
         tmp.textWrappingMode = TextWrappingModes.Normal;
-        tmp.overflowMode = TextOverflowModes.Ellipsis;
+        tmp.overflowMode = TextOverflowModes.Overflow;
         tmp.raycastTarget = false;
         tmp.margin = new Vector4(8f, 2f, 8f, 2f);
         var rt = tmp.rectTransform;
@@ -248,7 +253,7 @@ public static class FinashkaUiBuilder
         button.navigation = nav;
         var label = Label(go.transform, "Label", text, 24f, 44f, FontStyles.Bold, labelColor, TextAlignmentOptions.Center);
         label.textWrappingMode = TextWrappingModes.NoWrap;
-        label.overflowMode = TextOverflowModes.Ellipsis;
+        label.overflowMode = TextOverflowModes.Overflow;
         var lrt = label.rectTransform;
         lrt.offsetMin = new Vector2(16f, 10f);
         lrt.offsetMax = new Vector2(-16f, -10f);
@@ -353,6 +358,7 @@ public static class FinashkaUiBuilder
 
     public static void BuildGame()
     {
+        EnsureStatIcons();
         EditorSceneManager.OpenScene(GamePath);
         EnsureEventSystem();
 
@@ -378,7 +384,7 @@ public static class FinashkaUiBuilder
         var top = new GameObject("TopBar", typeof(RectTransform));
         top.transform.SetParent(safeGo.transform, false);
         Column(top, new RectOffset(4, 4, 4, 4), 6f, TextAnchor.UpperCenter);
-        PrefHeight(top, 228f);
+        PrefHeight(top, 280f);
 
         var title = Label(top.transform, "PetName", AppInfo.Title, 42f, 72f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
         MakeReadable(title, Gold);
@@ -387,8 +393,8 @@ public static class FinashkaUiBuilder
 
         var stats = new GameObject("Stats", typeof(RectTransform));
         stats.transform.SetParent(top.transform, false);
-        Row(stats, new RectOffset(8, 8, 0, 0), 28f);
-        PrefHeight(stats, 108f);
+        Row(stats, new RectOffset(80, 0, 0, 0), 20f);
+        PrefHeight(stats, 160f);
 
         var coinsCard = StatCard(stats.transform, "CoinsCard", "Coins", "монеты", "100", LoadSprite(CoinIconPath));
         var hungerCard = StatCard(stats.transform, "HungerCard", "Hunger", "сытость", "80", LoadSprite(HungerIconPath));
@@ -414,6 +420,8 @@ public static class FinashkaUiBuilder
         }
 
         var hud = hudGo.GetComponent<GameHud>() ?? hudGo.AddComponent<GameHud>();
+        var games = hudGo.GetComponent<WorkMinigamesView>() ?? hudGo.AddComponent<WorkMinigamesView>();
+        WorkOverlayFactory.Build(canvas.transform, games);
         var so = new SerializedObject(hud);
         so.FindProperty("_petName").objectReferenceValue = title;
         so.FindProperty("_coins").objectReferenceValue = coinsCard;
@@ -421,6 +429,7 @@ public static class FinashkaUiBuilder
         so.FindProperty("_feedback").objectReferenceValue = feedback;
         so.FindProperty("_workButton").objectReferenceValue = work;
         so.FindProperty("_snackButton").objectReferenceValue = snack;
+        so.FindProperty("_workGames").objectReferenceValue = games;
         so.ApplyModifiedPropertiesWithoutUndo();
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
@@ -449,10 +458,10 @@ public static class FinashkaUiBuilder
         iconImage.raycastTarget = false;
         iconImage.color = Color.white;
         var iconLayout = iconGo.GetComponent<LayoutElement>();
-        iconLayout.minWidth = 52f;
-        iconLayout.preferredWidth = 56f;
-        iconLayout.minHeight = 52f;
-        iconLayout.preferredHeight = 56f;
+        iconLayout.minWidth = 96f;
+        iconLayout.preferredWidth = 108f;
+        iconLayout.minHeight = 96f;
+        iconLayout.preferredHeight = 108f;
         iconLayout.flexibleWidth = 0f;
 
         var texts = new GameObject("Texts", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
@@ -466,17 +475,17 @@ public static class FinashkaUiBuilder
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
 
-        var valueLabel = Label(texts.transform, valueName, value, 28f, 44f, FontStyles.Bold, Ink, TextAlignmentOptions.MidlineLeft);
+        var valueLabel = Label(texts.transform, valueName, value, 56f, 72f, FontStyles.Bold, Ink, TextAlignmentOptions.MidlineLeft);
         MakeReadable(valueLabel, Ink);
         valueLabel.textWrappingMode = TextWrappingModes.NoWrap;
         valueLabel.margin = Vector4.zero;
-        PrefHeight(valueLabel.gameObject, 48f);
+        PrefHeight(valueLabel.gameObject, 88f);
 
-        var captionLabel = Label(texts.transform, "Caption", caption, 16f, 22f, FontStyles.Bold, Ink, TextAlignmentOptions.MidlineLeft);
+        var captionLabel = Label(texts.transform, "Caption", caption, 28f, 36f, FontStyles.Bold, Ink, TextAlignmentOptions.MidlineLeft);
         MakeReadable(captionLabel, Ink);
         captionLabel.textWrappingMode = TextWrappingModes.NoWrap;
         captionLabel.margin = Vector4.zero;
-        PrefHeight(captionLabel.gameObject, 28f);
+        PrefHeight(captionLabel.gameObject, 48f);
         return valueLabel;
     }
 
@@ -562,13 +571,12 @@ public static class FinashkaUiBuilder
             AssetDatabase.CreateFolder("Assets/_Game/_Art", "Icons");
         }
 
-        WriteIconPng(CoinIconPath, PaintCoin);
-        WriteIconPng(HungerIconPath, PaintHunger);
-        AssetDatabase.Refresh();
-        SetSpriteImport(CoinIconPath);
-        SetSpriteImport(HungerIconPath);
         AssetDatabase.ImportAsset(CoinIconPath);
         AssetDatabase.ImportAsset(HungerIconPath);
+        AssetDatabase.ImportAsset(NeedWantCoverPath);
+        SetSpriteImport(CoinIconPath);
+        SetSpriteImport(HungerIconPath);
+        SetSpriteImport(NeedWantCoverPath);
     }
 
     static void SetSpriteImport(string path)
@@ -588,118 +596,228 @@ public static class FinashkaUiBuilder
         importer.SaveAndReimport();
     }
 
-    static void WriteIconPng(string path, System.Action<Color32[], int> paint)
+    static GameObject StretchPage(Transform parent, string name)
     {
-        const int size = 128;
-        var pixels = new Color32[size * size];
-        paint(pixels, size);
-        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        texture.SetPixels32(pixels);
-        texture.Apply();
-        System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
-        Object.DestroyImmediate(texture);
+        var go = new GameObject(name, typeof(RectTransform));
+        Stretch(go, parent);
+        return go;
     }
 
-    static void PaintCoin(Color32[] pixels, int size)
+    static Button SlimButton(Transform parent, string name, string text, Color color, Color labelColor, float height)
     {
-        var gold = (Color32)Gold;
-        var dark = (Color32)new Color(0.55f, 0.34f, 0.06f, 1f);
-        var light = (Color32)new Color(0.98f, 0.86f, 0.45f, 1f);
-        float cx = size * 0.5f;
-        float cy = size * 0.5f;
-        float outer = size * 0.44f;
-        float ringOuter = size * 0.36f;
-        float ringInner = size * 0.3f;
-        int i;
-        for (i = 0; i < pixels.Length; i++)
+        var button = BigButton(parent, name, text, color, labelColor);
+        var layout = button.GetComponent<LayoutElement>();
+        layout.minHeight = height;
+        layout.preferredHeight = height;
+        layout.flexibleHeight = 0f;
+        return button;
+    }
+
+    static Button CoverGameCard(Transform parent, string name, Sprite cover, string title, string subtitle)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement), typeof(VerticalLayoutGroup));
+        go.transform.SetParent(parent, false);
+        var image = Sliced(go, Cream, true);
+        var layout = go.GetComponent<LayoutElement>();
+        layout.minHeight = 420f;
+        layout.preferredHeight = 460f;
+        layout.flexibleHeight = 0f;
+        var column = go.GetComponent<VerticalLayoutGroup>();
+        column.padding = new RectOffset(20, 20, 20, 20);
+        column.spacing = 10f;
+        column.childAlignment = TextAnchor.UpperCenter;
+        column.childControlWidth = true;
+        column.childControlHeight = true;
+        column.childForceExpandWidth = true;
+        column.childForceExpandHeight = false;
+        var button = go.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.transition = Selectable.Transition.ColorTint;
+        var colors = button.colors;
+        colors.pressedColor = new Color(0.82f, 0.82f, 0.82f, 1f);
+        button.colors = colors;
+
+        var coverGo = new GameObject("Cover", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        coverGo.transform.SetParent(go.transform, false);
+        var coverImage = coverGo.GetComponent<Image>();
+        coverImage.sprite = cover;
+        coverImage.preserveAspect = true;
+        coverImage.raycastTarget = false;
+        coverImage.color = Color.white;
+        var coverLayout = coverGo.GetComponent<LayoutElement>();
+        coverLayout.minHeight = 220f;
+        coverLayout.preferredHeight = 240f;
+
+        var titleLabel = Label(go.transform, "Title", title, 28f, 40f, FontStyles.Bold, Ink, TextAlignmentOptions.Center);
+        MakeReadable(titleLabel, Ink);
+        PrefHeight(titleLabel.gameObject, 48f);
+
+        var subLabel = Label(go.transform, "Subtitle", subtitle, 20f, 28f, FontStyles.Normal, Ink, TextAlignmentOptions.Center);
+        MakeReadable(subLabel, Ink);
+        PrefHeight(subLabel.gameObject, 72f);
+        return button;
+    }
+
+    static GameObject BuildWorkOverlay(Transform canvas)
+    {
+        var overlay = new GameObject("WorkOverlay", typeof(RectTransform));
+        Stretch(overlay, canvas);
+        overlay.SetActive(false);
+
+        var dimGo = new GameObject("Dim", typeof(RectTransform), typeof(Image), typeof(Button));
+        Stretch(dimGo, overlay.transform);
+        var dimImg = dimGo.GetComponent<Image>();
+        dimImg.color = Dim;
+        dimImg.raycastTarget = true;
+        var dimBtn = dimGo.GetComponent<Button>();
+        dimBtn.targetGraphic = dimImg;
+        dimBtn.transition = Selectable.Transition.None;
+
+        var safe = new GameObject("SheetSafe", typeof(RectTransform), typeof(SafeAreaFitter));
+        Stretch(safe, overlay.transform);
+        Column(safe, new RectOffset(36, 36, 36, 36), 0f, TextAnchor.MiddleCenter);
+
+        var sheet = new GameObject("Sheet", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        sheet.transform.SetParent(safe.transform, false);
+        Sliced(sheet, Sheet, true);
+        var sheetLayout = sheet.GetComponent<LayoutElement>();
+        sheetLayout.flexibleHeight = 1f;
+        sheetLayout.flexibleWidth = 1f;
+        Column(sheet, new RectOffset(28, 28, 28, 24), 12f, TextAnchor.UpperCenter);
+
+        var header = Label(sheet.transform, "WorkTitle", "Подработка", 34f, 52f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
+        MakeReadable(header, Gold);
+        header.characterSpacing = 2f;
+        PrefHeight(header.gameObject, 60f);
+
+        var pages = new GameObject("Pages", typeof(RectTransform), typeof(LayoutElement));
+        pages.transform.SetParent(sheet.transform, false);
+        pages.GetComponent<LayoutElement>().flexibleHeight = 1f;
+
+        var menu = StretchPage(pages.transform, "Menu");
+        Column(menu, new RectOffset(0, 0, 0, 0), 14f, TextAnchor.UpperCenter);
+        var intro = Label(menu.transform, "MenuIntro", "Выбери мини-игру и заработай монеты. Финашка учится: что нужно купить, а что просто хочется.", 20f, 30f, FontStyles.Normal, Ink, TextAlignmentOptions.Center);
+        MakeReadable(intro, Ink);
+        PrefHeight(intro.gameObject, 96f);
+        CoverGameCard(
+            menu.transform,
+            "NeedWantCard",
+            LoadSprite(NeedWantCoverPath),
+            "Нужно или хочу?",
+            "5 вопросов · до +15 монет");
+        var soon = Label(menu.transform, "MenuSoon", "Скоро появятся новые игры", 18f, 26f, FontStyles.Italic, Ink, TextAlignmentOptions.Center);
+        MakeReadable(soon, Ink);
+        PrefHeight(soon.gameObject, 40f);
+        Spacer(menu.transform, 1f);
+        SlimButton(menu.transform, "CloseMenuButton", "Закрыть", Snack, Cream, 96f);
+
+        var play = StretchPage(pages.transform, "Play");
+        Column(play, new RectOffset(0, 0, 0, 0), 10f, TextAnchor.UpperCenter);
+        var progress = Label(play.transform, "PlayProgress", "1 / 5", 22f, 32f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
+        MakeReadable(progress, Gold);
+        PrefHeight(progress.gameObject, 40f);
+
+        var itemCard = new GameObject("ItemCard", typeof(RectTransform), typeof(Image), typeof(LayoutElement), typeof(VerticalLayoutGroup));
+        itemCard.transform.SetParent(play.transform, false);
+        Sliced(itemCard, Cream, false);
+        var itemLayout = itemCard.GetComponent<LayoutElement>();
+        itemLayout.minHeight = 260f;
+        itemLayout.preferredHeight = 300f;
+        itemLayout.flexibleHeight = 1f;
+        var itemCol = itemCard.GetComponent<VerticalLayoutGroup>();
+        itemCol.padding = new RectOffset(20, 20, 24, 20);
+        itemCol.spacing = 12f;
+        itemCol.childAlignment = TextAnchor.MiddleCenter;
+        itemCol.childControlWidth = true;
+        itemCol.childControlHeight = true;
+        itemCol.childForceExpandWidth = true;
+        itemCol.childForceExpandHeight = false;
+        var itemTitle = Label(itemCard.transform, "ItemTitle", "Хлеб", 34f, 52f, FontStyles.Bold, Ink, TextAlignmentOptions.Center);
+        MakeReadable(itemTitle, Ink);
+        PrefHeight(itemTitle.gameObject, 72f);
+        var itemPrompt = Label(itemCard.transform, "ItemPrompt", "В магазине лежит свежий хлеб.", 22f, 34f, FontStyles.Normal, Ink, TextAlignmentOptions.Center);
+        MakeReadable(itemPrompt, Ink);
+        PrefHeight(itemPrompt.gameObject, 120f);
+
+        var playFeedback = Label(play.transform, "PlayFeedback", "Это нужно купить или просто хочется?", 20f, 30f, FontStyles.Bold, Ink, TextAlignmentOptions.Center);
+        MakeReadable(playFeedback, Ink);
+        PrefHeight(playFeedback.gameObject, 88f);
+        SlimButton(play.transform, "NeedButton", "Нужно", Need, Cream, 112f);
+        SlimButton(play.transform, "WantButton", "Хочу", Want, Ink, 112f);
+        SlimButton(play.transform, "ClosePlayButton", "В меню", Track, Cream, 80f);
+
+        var result = StretchPage(pages.transform, "Result");
+        Column(result, new RectOffset(0, 0, 8, 0), 14f, TextAnchor.MiddleCenter);
+        Spacer(result.transform, 1f);
+        var resultTitle = Label(result.transform, "ResultTitle", "Супер!", 36f, 58f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
+        MakeReadable(resultTitle, Gold);
+        PrefHeight(resultTitle.gameObject, 72f);
+        var resultScore = Label(result.transform, "ResultScore", "Верно 5 из 5", 22f, 32f, FontStyles.Normal, Ink, TextAlignmentOptions.Center);
+        MakeReadable(resultScore, Ink);
+        PrefHeight(resultScore.gameObject, 160f);
+        var resultCoins = Label(result.transform, "ResultCoins", "+15 монет", 32f, 48f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
+        MakeReadable(resultCoins, Gold);
+        PrefHeight(resultCoins.gameObject, 64f);
+        Spacer(result.transform, 1f);
+        SlimButton(result.transform, "CollectButton", "Забрать монеты", Work, Ink, 120f);
+
+        play.SetActive(false);
+        result.SetActive(false);
+        return overlay;
+    }
+
+    static void WireWorkGames(WorkMinigamesView view, GameObject overlay)
+    {
+        Transform pages = overlay.transform.Find("SheetSafe/Sheet/Pages");
+        var so = new SerializedObject(view);
+        so.FindProperty("_root").objectReferenceValue = overlay;
+        so.FindProperty("_menu").objectReferenceValue = pages.Find("Menu").gameObject;
+        so.FindProperty("_play").objectReferenceValue = pages.Find("Play").gameObject;
+        so.FindProperty("_result").objectReferenceValue = pages.Find("Result").gameObject;
+        so.FindProperty("_dimButton").objectReferenceValue = overlay.transform.Find("Dim").GetComponent<Button>();
+        so.FindProperty("_closeMenuButton").objectReferenceValue = pages.Find("Menu/CloseMenuButton").GetComponent<Button>();
+        so.FindProperty("_closePlayButton").objectReferenceValue = pages.Find("Play/ClosePlayButton").GetComponent<Button>();
+        so.FindProperty("_openNeedWantButton").objectReferenceValue = pages.Find("Menu/NeedWantCard").GetComponent<Button>();
+        so.FindProperty("_needButton").objectReferenceValue = pages.Find("Play/NeedButton").GetComponent<Button>();
+        so.FindProperty("_wantButton").objectReferenceValue = pages.Find("Play/WantButton").GetComponent<Button>();
+        so.FindProperty("_collectButton").objectReferenceValue = pages.Find("Result/CollectButton").GetComponent<Button>();
+        so.FindProperty("_progress").objectReferenceValue = pages.Find("Play/PlayProgress").GetComponent<TextMeshProUGUI>();
+        so.FindProperty("_itemTitle").objectReferenceValue = pages.Find("Play/ItemCard/ItemTitle").GetComponent<TextMeshProUGUI>();
+        so.FindProperty("_itemPrompt").objectReferenceValue = pages.Find("Play/ItemCard/ItemPrompt").GetComponent<TextMeshProUGUI>();
+        so.FindProperty("_playFeedback").objectReferenceValue = pages.Find("Play/PlayFeedback").GetComponent<TextMeshProUGUI>();
+        so.FindProperty("_resultTitle").objectReferenceValue = pages.Find("Result/ResultTitle").GetComponent<TextMeshProUGUI>();
+        so.FindProperty("_resultScore").objectReferenceValue = pages.Find("Result/ResultScore").GetComponent<TextMeshProUGUI>();
+        so.FindProperty("_resultCoins").objectReferenceValue = pages.Find("Result/ResultCoins").GetComponent<TextMeshProUGUI>();
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+}
+
+[InitializeOnLoad]
+static class FinashkaApplyLargeStats
+{
+    const string Key = "Finashka.WorkMinigame.v1";
+
+    static FinashkaApplyLargeStats()
+    {
+        EditorApplication.delayCall += Run;
+    }
+
+    static void Run()
+    {
+        if (SessionState.GetBool(Key, false) || EditorApplication.isPlayingOrWillChangePlaymode)
         {
-            int x = i % size;
-            int y = i / size;
-            float dx = x + 0.5f - cx;
-            float dy = y + 0.5f - cy;
-            float d = Mathf.Sqrt(dx * dx + dy * dy);
-            float a = Mathf.Clamp01(outer + 1.2f - d);
-            if (a <= 0.001f)
-            {
-                pixels[i] = new Color32(0, 0, 0, 0);
-                continue;
-            }
-
-            Color32 c = gold;
-            if (d < ringOuter && d > ringInner)
-            {
-                c = dark;
-            }
-            else if (dx < -size * 0.08f && dy > size * 0.08f && d < ringInner)
-            {
-                c = light;
-            }
-
-            c.a = (byte)Mathf.RoundToInt(a * 255f);
-            pixels[i] = c;
+            return;
         }
-    }
 
-    static void PaintHunger(Color32[] pixels, int size)
-    {
-        var gold = (Color32)Gold;
-        var dark = (Color32)new Color(0.55f, 0.34f, 0.06f, 1f);
-        var leaf = (Color32)Gold;
-        float cx = size * 0.5f;
-        float cy = size * 0.44f;
-        float body = size * 0.32f;
-        int i;
-        for (i = 0; i < pixels.Length; i++)
+        SessionState.SetBool(Key, true);
+        try
         {
-            int x = i % size;
-            int y = i / size;
-            float px = x + 0.5f;
-            float py = y + 0.5f;
-            float dx = px - cx;
-            float dy = py - cy;
-            float dBody = Mathf.Sqrt(dx * dx + dy * dy);
-            float bite = Mathf.Sqrt((px - cx) * (px - cx) + (py - (cy + body * 0.85f)) * (py - (cy + body * 0.85f)));
-            float stem = 0f;
-            if (Mathf.Abs(px - cx) < size * 0.035f && py > cy + body * 0.55f && py < cy + body * 1.35f)
-            {
-                stem = 1f;
-            }
-
-            float leafDx = (px - (cx + size * 0.12f)) / (size * 0.14f);
-            float leafDy = (py - (cy + body * 1.05f)) / (size * 0.08f);
-            float leafD = leafDx * leafDx + leafDy * leafDy;
-            float a = 0f;
-            Color32 c = gold;
-            if (dBody < body + 1.2f && bite > size * 0.12f)
-            {
-                a = Mathf.Clamp01(body + 1.2f - dBody);
-                if (dx < -size * 0.06f && dy > size * 0.04f)
-                {
-                    c = (Color32)new Color(0.98f, 0.86f, 0.45f, 1f);
-                }
-            }
-
-            if (stem > 0f)
-            {
-                a = 1f;
-                c = dark;
-            }
-
-            if (leafD < 1f)
-            {
-                a = Mathf.Max(a, Mathf.Clamp01(1.2f - leafD));
-                c = leaf;
-            }
-
-            if (a <= 0.001f)
-            {
-                pixels[i] = new Color32(0, 0, 0, 0);
-            }
-            else
-            {
-                c.a = (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f);
-                pixels[i] = c;
-            }
+            FinashkaUiBuilder.BuildGame();
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/_Game/_Scenes/Boot.unity");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning("Finashka HUD rebuild: " + ex.Message);
         }
     }
 }
