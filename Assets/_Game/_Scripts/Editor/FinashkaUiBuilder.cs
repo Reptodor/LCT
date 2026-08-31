@@ -393,7 +393,7 @@ public static class FinashkaUiBuilder
 
         var stats = new GameObject("Stats", typeof(RectTransform));
         stats.transform.SetParent(top.transform, false);
-        Row(stats, new RectOffset(80, 0, 0, 0), 20f);
+        Row(stats, new RectOffset(0, 0, 0, 0), 20f);
         PrefHeight(stats, 160f);
 
         var coinsCard = StatCard(stats.transform, "CoinsCard", "Coins", "монеты", "100", LoadSprite(CoinIconPath));
