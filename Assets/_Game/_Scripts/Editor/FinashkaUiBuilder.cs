@@ -47,6 +47,12 @@ public static class FinashkaUiBuilder
         EditorSceneManager.OpenScene(BootPath);
     }
 
+    [MenuItem("Finashka/Place 3D Room")]
+    public static void PlaceGameRoomMenu()
+    {
+        PlaceGameRoom();
+    }
+
     static Sprite UiSprite()
     {
         return AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
@@ -375,7 +381,7 @@ public static class FinashkaUiBuilder
             cam.backgroundColor = GameBg;
         }
 
-        PlaceRoomBackground(cam);
+        PlaceRoom3D(cam);
 
         var safeGo = new GameObject("SafeArea", typeof(RectTransform), typeof(SafeAreaFitter));
         Stretch(safeGo, canvas.transform);
@@ -494,49 +500,18 @@ public static class FinashkaUiBuilder
         return AssetDatabase.LoadAssetAtPath<Sprite>(path);
     }
 
-    static void PlaceRoomBackground(Camera cam)
+    public static void PlaceGameRoom()
     {
-        SetBackgroundImport(RoomBgPath);
-        var sprite = LoadSprite(RoomBgPath);
-        if (sprite == null)
-        {
-            return;
-        }
+        EditorSceneManager.OpenScene(GamePath);
+        var cam = Object.FindFirstObjectByType<Camera>();
+        PlaceRoom3D(cam);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        EditorSceneManager.SaveOpenScenes();
+    }
 
-        var go = GameObject.Find("RoomBackground");
-        if (go == null)
-        {
-            go = new GameObject("RoomBackground");
-        }
-
-        var renderer = go.GetComponent<SpriteRenderer>();
-        if (renderer == null)
-        {
-            renderer = go.AddComponent<SpriteRenderer>();
-        }
-
-        renderer.sprite = sprite;
-        renderer.color = Color.white;
-        renderer.sortingOrder = -20;
-        go.transform.position = new Vector3(0f, 1.15f, 5f);
-        go.transform.rotation = Quaternion.identity;
-
-        if (cam == null)
-        {
-            return;
-        }
-
-        float distance = Mathf.Abs(go.transform.position.z - cam.transform.position.z);
-        float worldHeight = 2f * distance * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
-        float worldWidth = worldHeight * (9f / 16f);
-        Vector2 size = sprite.bounds.size;
-        if (size.x < 0.01f || size.y < 0.01f)
-        {
-            return;
-        }
-
-        float scale = Mathf.Max(worldWidth / size.x, worldHeight / size.y) * 1.04f;
-        go.transform.localScale = new Vector3(scale, scale, 1f);
+    static void PlaceRoom3D(Camera cam)
+    {
+        PetRoom.Build(cam);
     }
 
     static void SetBackgroundImport(string path)
@@ -795,7 +770,7 @@ public static class FinashkaUiBuilder
 [InitializeOnLoad]
 static class FinashkaApplyLargeStats
 {
-    const string Key = "Finashka.WorkMinigame.v1";
+    const string Key = "Finashka.Room3D.v5";
 
     static FinashkaApplyLargeStats()
     {
@@ -812,12 +787,11 @@ static class FinashkaApplyLargeStats
         SessionState.SetBool(Key, true);
         try
         {
-            FinashkaUiBuilder.BuildGame();
-            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/_Game/_Scenes/Boot.unity");
+            FinashkaUiBuilder.PlaceGameRoom();
         }
         catch (System.Exception ex)
         {
-            Debug.LogWarning("Finashka HUD rebuild: " + ex.Message);
+            Debug.LogWarning("Finashka room rebuild: " + ex.Message);
         }
     }
 }

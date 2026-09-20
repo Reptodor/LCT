@@ -13,6 +13,12 @@ public class GameHud : MonoBehaviour
     [SerializeField] WorkMinigamesView _workGames;
     [SerializeField] SnackShopView _snackShop;
 
+    GameObject _bottomBar;
+    Image _roomButtonImage;
+    Sprite _bathIcon;
+    Sprite _livingIcon;
+    bool _inBath;
+
     void Awake()
     {
         Screen.orientation = ScreenOrientation.Portrait;
@@ -34,6 +40,7 @@ public class GameHud : MonoBehaviour
 
         EnsureWorkGames();
         EnsureSnackShop();
+        EnsureRoomButton();
         Refresh();
     }
 
@@ -167,6 +174,88 @@ public class GameHud : MonoBehaviour
         if (_snackShop != null)
         {
             _snackShop.Bind(OnFoodBought);
+        }
+    }
+
+    void EnsureRoomButton()
+    {
+        _bottomBar = GameObject.Find("BottomBar");
+        Canvas canvas = FindHudCanvas();
+        if (canvas == null)
+        {
+            return;
+        }
+
+        var existing = canvas.transform.Find("RoomButton");
+        GameObject go;
+        if (existing != null)
+        {
+            go = existing.gameObject;
+        }
+        else
+        {
+            go = new GameObject("RoomButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(canvas.transform, false);
+        }
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(1f, 0.5f);
+        rt.anchorMax = new Vector2(1f, 0.5f);
+        rt.pivot = new Vector2(1f, 0.5f);
+        rt.sizeDelta = new Vector2(112f, 112f);
+        rt.anchoredPosition = new Vector2(-28f, -40f);
+
+        _bathIcon = RoomIcons.Bath();
+        _livingIcon = RoomIcons.Living();
+        _roomButtonImage = go.GetComponent<Image>();
+        _roomButtonImage.sprite = _bathIcon;
+        _roomButtonImage.preserveAspect = true;
+        _roomButtonImage.raycastTarget = true;
+
+        var button = go.GetComponent<Button>();
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(OnRoomToggle);
+        button.targetGraphic = _roomButtonImage;
+        ApplyRoomUi();
+    }
+
+    void OnRoomToggle()
+    {
+        _inBath = !_inBath;
+        PetRoom.Build(Camera.main, _inBath ? RoomKind.Bath : RoomKind.Living);
+        ApplyRoomUi();
+    }
+
+    void ApplyRoomUi()
+    {
+        if (_bottomBar == null)
+        {
+            _bottomBar = GameObject.Find("BottomBar");
+        }
+
+        if (_bottomBar != null)
+        {
+            _bottomBar.SetActive(!_inBath);
+        }
+
+        if (_workButton != null)
+        {
+            _workButton.gameObject.SetActive(!_inBath);
+        }
+
+        if (_snackButton != null)
+        {
+            _snackButton.gameObject.SetActive(!_inBath);
+        }
+
+        if (_roomButtonImage != null)
+        {
+            _roomButtonImage.sprite = _inBath ? _livingIcon : _bathIcon;
+        }
+
+        if (_inBath)
+        {
+            SetFeedback("");
         }
     }
 
