@@ -1,29 +1,45 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
+using UnityEngine.UI;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 public class PetWalk : MonoBehaviour
 {
     const float FocusY = 0.4f;
     const float Pitch = 56f;
+    const float PitchClose = 50f;
     const float Distance = 14f;
-    const float Speed = 2.4f;
-    const float SwipePixels = 70f;
-    const float CamStart = 0.78f;
+    const float SwipePixels = 48f;
+    const float CamDuration = 0.45f;
+    const float RoomViewWidth = 5.15f;
+    const float ZoomIn = 0.92f;
+    const float ZoomOut = 1.12f;
+    const float PinchFeel = 0.7f;
+    const float PitchEase = 0.28f;
 
     Camera _cam;
     float _livingX;
     float _bathX;
-    float _fromX;
-    float _toX;
     float _focusX;
-    float _camHoldX;
+    float _camFromX;
     float _camGoalX;
-    float _duration;
-    float _walkT;
-    bool _walking;
+    float _camT;
+    float _zoom = 4.25f;
+    float _fitZoom = 4.25f;
+    float _pitch = Pitch;
+    float _pitchVel;
+    bool _camMoving;
     bool _dragging;
+    bool _pinching;
+    float _pinchStartDist;
+    float _pinchStartZoom;
     Vector2 _dragStart;
+    int _screenW;
+    int _screenH;
+    readonly List<RaycastResult> _hits = new List<RaycastResult>();
 
     public static void Attach(GameObject pet, Camera cam, float livingX, float bathX)
     {
@@ -36,26 +52,106 @@ public class PetWalk : MonoBehaviour
         walk.Setup(cam, livingX, bathX);
     }
 
+    void OnEnable()
+    {
+        EnhancedTouchSupport.Enable();
+        Input.multiTouchEnabled = true;
+    }
+
+    void OnDisable()
+    {
+        EnhancedTouchSupport.Disable();
+    }
+
     void Setup(Camera cam, float livingX, float bathX)
     {
         _cam = cam;
         _livingX = livingX;
         _bathX = bathX;
-        _focusX = transform.position.x;
-        _walking = false;
-        FollowCamera();
+        _focusX = livingX;
+        _camMoving = false;
+        FitZoom(true);
+        ApplyCamera();
     }
 
     void Update()
     {
-        ReadKeys();
-        ReadPointer();
-        Step();
+        FitZoom(false);
+        var touches = Touch.activeTouches;
+        if (touches.Count >= 2)
+        {
+            ReadPinch(touches);
+        }
+        else
+        {
+            _pinching = false;
+            ReadKeys();
+            ReadSwipe(touches);
+            ReadWheel();
+        }
+
+        StepCamera();
     }
 
     void LateUpdate()
     {
-        FollowCamera();
+        ApplyCamera();
+    }
+
+    void FitZoom(bool force)
+    {
+        if (!force && _screenW == Screen.width && _screenH == Screen.height)
+        {
+            return;
+        }
+
+        _screenW = Screen.width;
+        _screenH = Mathf.Max(1, Screen.height);
+        float aspect = Mathf.Max(0.35f, (float)_screenW / _screenH);
+        _fitZoom = RoomViewWidth / (2f * aspect);
+        _zoom = _fitZoom;
+        _pitch = Pitch;
+        _pitchVel = 0f;
+    }
+
+    void ReadPinch(IReadOnlyList<Touch> touches)
+    {
+        _dragging = false;
+        var a = touches[0].screenPosition;
+        var b = touches[1].screenPosition;
+        float dist = Vector2.Distance(a, b);
+        if (!_pinching)
+        {
+            _pinching = true;
+            _pinchStartDist = Mathf.Max(24f, dist);
+            _pinchStartZoom = _zoom;
+            return;
+        }
+
+        float ratio = Mathf.Lerp(1f, dist / _pinchStartDist, PinchFeel);
+        _zoom = Mathf.Clamp(_pinchStartZoom / Mathf.Max(0.2f, ratio), _fitZoom * ZoomIn, _fitZoom * ZoomOut);
+    }
+
+    void ReadWheel()
+    {
+        if (Touch.activeTouches.Count > 0)
+        {
+            return;
+        }
+
+        var mouse = Mouse.current;
+        if (mouse == null)
+        {
+            return;
+        }
+
+        float scroll = mouse.scroll.ReadValue().y;
+        if (Mathf.Abs(scroll) < 0.01f || HitsControl(mouse.position.ReadValue()))
+        {
+            return;
+        }
+
+        _zoom = Mathf.Clamp(_zoom - scroll * 0.06f, _fitZoom * ZoomIn, _fitZoom * ZoomOut);
     }
 
     void ReadKeys()
@@ -77,20 +173,26 @@ public class PetWalk : MonoBehaviour
         }
     }
 
-    void ReadPointer()
+    void ReadSwipe(IReadOnlyList<Touch> touches)
     {
-        var touch = Touchscreen.current;
-        if (touch != null)
+        if (touches.Count == 1)
         {
-            var press = touch.primaryTouch.press;
-            if (press.wasPressedThisFrame)
+            var touch = touches[0];
+            if (touch.began)
             {
-                BeginDrag(touch.primaryTouch.position.ReadValue(), touch.primaryTouch.touchId.ReadValue());
+                BeginDrag(touch.screenPosition);
             }
-            else if (_dragging && press.wasReleasedThisFrame)
+            else if (_dragging && touch.ended)
             {
-                EndDrag(touch.primaryTouch.position.ReadValue());
+                EndDrag(touch.screenPosition);
             }
+
+            return;
+        }
+
+        if (Touchscreen.current != null)
+        {
+            return;
         }
 
         var mouse = Mouse.current;
@@ -101,7 +203,7 @@ public class PetWalk : MonoBehaviour
 
         if (mouse.leftButton.wasPressedThisFrame)
         {
-            BeginDrag(mouse.position.ReadValue(), -1);
+            BeginDrag(mouse.position.ReadValue());
         }
         else if (_dragging && mouse.leftButton.wasReleasedThisFrame)
         {
@@ -109,9 +211,9 @@ public class PetWalk : MonoBehaviour
         }
     }
 
-    void BeginDrag(Vector2 position, int pointerId)
+    void BeginDrag(Vector2 position)
     {
-        if (IsOverUi(pointerId))
+        if (HitsControl(position))
         {
             _dragging = false;
             return;
@@ -130,7 +232,8 @@ public class PetWalk : MonoBehaviour
 
         _dragging = false;
         float dx = position.x - _dragStart.x;
-        if (Mathf.Abs(dx) < SwipePixels)
+        float dy = position.y - _dragStart.y;
+        if (Mathf.Abs(dx) < SwipePixels || Mathf.Abs(dx) < Mathf.Abs(dy))
         {
             return;
         }
@@ -138,70 +241,74 @@ public class PetWalk : MonoBehaviour
         GoTo(dx < 0f ? _bathX : _livingX);
     }
 
-    static bool IsOverUi(int pointerId)
+    bool HitsControl(Vector2 screenPos)
     {
-        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId);
+        if (EventSystem.current == null)
+        {
+            return false;
+        }
+
+        var pointer = new PointerEventData(EventSystem.current)
+        {
+            position = screenPos
+        };
+        _hits.Clear();
+        EventSystem.current.RaycastAll(pointer, _hits);
+        for (int i = 0; i < _hits.Count; i++)
+        {
+            if (_hits[i].gameObject.GetComponentInParent<Selectable>() != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     void GoTo(float x)
     {
-        _fromX = transform.position.x;
-        _toX = x;
-        float span = Mathf.Abs(_toX - _fromX);
-        if (span < 0.05f)
+        if (Mathf.Abs(_focusX - x) < 0.05f && !_camMoving)
         {
-            _walking = false;
             return;
         }
 
-        _duration = Mathf.Max(0.35f, span / Speed);
-        _walkT = 0f;
-        _camHoldX = _focusX;
+        _camFromX = _focusX;
         _camGoalX = x;
-        _walking = true;
+        _camT = 0f;
+        _camMoving = true;
     }
 
-    void Step()
+    void StepCamera()
     {
-        if (!_walking)
+        if (!_camMoving)
         {
             return;
         }
 
-        _walkT += Time.deltaTime / _duration;
-        float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_walkT));
-        var position = transform.position;
-        position.x = Mathf.Lerp(_fromX, _toX, u);
-        transform.position = position;
-
-        float span = Mathf.Abs(_toX - _fromX);
-        float along = span < 0.001f ? 1f : Mathf.Abs(position.x - _fromX) / span;
-        if (along < CamStart)
+        _camT += Time.deltaTime / CamDuration;
+        float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_camT));
+        _focusX = Mathf.Lerp(_camFromX, _camGoalX, u);
+        if (_camT >= 1f)
         {
-            _focusX = _camHoldX;
-        }
-        else
-        {
-            float camU = Mathf.SmoothStep(0f, 1f, (along - CamStart) / (1f - CamStart));
-            _focusX = Mathf.Lerp(_camHoldX, _camGoalX, camU);
-        }
-
-        if (_walkT >= 1f)
-        {
-            _walking = false;
+            _camMoving = false;
         }
     }
 
-    void FollowCamera()
+    void ApplyCamera()
     {
         if (_cam == null)
         {
             return;
         }
 
-        float rad = Pitch * Mathf.Deg2Rad;
+        float close = _fitZoom * ZoomIn;
+        float tilt = Mathf.Clamp01(Mathf.InverseLerp(_fitZoom, close, _zoom));
+        float targetPitch = Mathf.Lerp(Pitch, PitchClose, tilt);
+        _pitch = Mathf.SmoothDamp(_pitch, targetPitch, ref _pitchVel, PitchEase);
+        float rad = _pitch * Mathf.Deg2Rad;
         var lookDir = new Vector3(0f, -Mathf.Sin(rad), Mathf.Cos(rad));
         var focus = new Vector3(_focusX, FocusY, 0f);
-        _cam.transform.SetPositionAndRotation(focus - lookDir * Distance, Quaternion.Euler(Pitch, 0f, 0f));
+        _cam.orthographicSize = _zoom;
+        _cam.transform.SetPositionAndRotation(focus - lookDir * Distance, Quaternion.Euler(_pitch, 0f, 0f));
     }
 }

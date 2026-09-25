@@ -6,7 +6,19 @@ public static class PetRoom
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void EnsureOnPlay()
     {
-        if (!SceneManager.GetActiveScene().name.Contains("Game"))
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        TryBuild(SceneManager.GetActiveScene());
+    }
+
+    static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        TryBuild(scene);
+    }
+
+    static void TryBuild(Scene scene)
+    {
+        if (!scene.name.Contains("Game"))
         {
             return;
         }
