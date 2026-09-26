@@ -34,6 +34,7 @@ public class GameHud : MonoBehaviour
 
         EnsureWorkGames();
         EnsureSnackShop();
+        EnsureWardrobeButton();
         HideRoomSwitch();
         Refresh();
     }
@@ -76,6 +77,66 @@ public class GameHud : MonoBehaviour
         }
 
         Refresh();
+    }
+
+    void EnsureWardrobeButton()
+    {
+        if (_snackButton == null)
+        {
+            return;
+        }
+
+        var bar = _snackButton.transform.parent;
+        var existing = bar.Find("WardrobeButton");
+        Button button;
+        if (existing != null)
+        {
+            button = existing.GetComponent<Button>();
+        }
+        else
+        {
+            var copy = Object.Instantiate(_snackButton.gameObject, bar);
+            copy.name = "WardrobeButton";
+            var label = copy.GetComponentInChildren<TMP_Text>();
+            if (label != null)
+            {
+                label.text = "Шкаф";
+            }
+
+            var image = copy.GetComponent<Image>();
+            if (image != null)
+            {
+                image.color = new Color(0.55f, 0.36f, 0.20f, 1f);
+            }
+
+            button = copy.GetComponent<Button>();
+            button.onClick.RemoveAllListeners();
+        }
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(OnWardrobe);
+    }
+
+    void OnWardrobe()
+    {
+        bool show = !IsWardrobeZoneOn();
+        PetRoom.ShowWardrobeZone(show);
+        var button = _snackButton.transform.parent.Find("WardrobeButton");
+        var image = button != null ? button.GetComponent<Image>() : null;
+        if (image != null)
+        {
+            image.color = show
+                ? new Color(0.42f, 0.72f, 0.38f, 1f)
+                : new Color(0.55f, 0.36f, 0.20f, 1f);
+        }
+
+        SetFeedback(show ? "Нажми на площадку" : "");
+    }
+
+    static bool IsWardrobeZoneOn()
+    {
+        var zone = GameObject.Find("WardrobeZone");
+        return zone != null && zone.activeSelf;
     }
 
     void OnSnack()

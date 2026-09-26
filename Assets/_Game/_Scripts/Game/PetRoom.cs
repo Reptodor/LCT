@@ -1,8 +1,10 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 public static class PetRoom
 {
+    static GameObject _wardrobeZone;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void EnsureOnPlay()
     {
@@ -74,6 +76,8 @@ public static class PetRoom
         Box(room.transform, "DividerNear", new Vector3(dividerX, h * 0.5f, -sideZ), new Vector3(t, h, side), trim);
         Box(room.transform, "DividerFar", new Vector3(dividerX, h * 0.5f, sideZ), new Vector3(t, h, side), trim);
 
+        PlaceWardrobe(room.transform, xMin, dividerX, zMin, zMax);
+
         var pet = GameObject.Find("Monetok");
         if (pet != null)
         {
@@ -109,6 +113,70 @@ public static class PetRoom
         }
     }
 
+    // Площадки шкафа. Чтобы добавить место, допиши строку в список ниже.
+    // AgainstLeft / AgainstRight ставят шкаф длинной стороной вдоль боковой стены.
+    // AgainstBack / AgainstFront ставят его вдоль дальней или ближней стены, разворот другой.
+    // wallX / wallZ — координата стены. along — где на этой стене стоит центр шкафа.
+    // depth — толщина шкафа от стены в комнату, её берём с префаба.
+    static WardrobeSpot[] WardrobeLayout(float xMin, float xMax, float zMin, float zMax, float depth)
+    {
+        const float wall = 0.08f;
+        return new[]
+        {
+            WardrobeSpot.AgainstLeft("LeftBack", xMin, zMax - 1.15f, wall, depth),
+            WardrobeSpot.AgainstLeft("LeftFront", xMin, zMin + 1.15f, wall, depth),
+            WardrobeSpot.AgainstBack("BackDoor", xMax - 0.9f, zMax, wall, depth)
+        };
+    }
+
+    static void PlaceWardrobe(Transform room, float xMin, float xMax, float zMin, float zMax)
+    {
+        var prefab = Resources.Load<GameObject>("Wardrobe");
+        if (prefab == null)
+        {
+            return;
+        }
+
+        var wardrobe = Object.Instantiate(prefab, room);
+        wardrobe.name = "Wardrobe";
+        float depth = wardrobe.transform.localScale.x;
+        float height = wardrobe.transform.localScale.y;
+        float width = wardrobe.transform.localScale.z;
+        var spots = WardrobeLayout(xMin, xMax, zMin, zMax, depth);
+
+        _wardrobeZone = new GameObject("WardrobeZone");
+        _wardrobeZone.transform.SetParent(room, false);
+        var pads = _wardrobeZone.AddComponent<WardrobePads>();
+        var zoneMat = Mat(new Color(0.42f, 0.86f, 0.46f, 1f), 0.08f);
+        var chosenMat = Mat(new Color(0.95f, 0.78f, 0.28f, 1f), 0.12f);
+        var padScale = new Vector3(depth + 0.36f, 0.045f, width + 0.36f);
+        for (int i = 0; i < spots.Length; i++)
+        {
+            var spot = spots[i];
+            var pad = Box(_wardrobeZone.transform, "WardrobeSpot", spot.Position + new Vector3(0f, 0.03f, 0f), padScale, zoneMat);
+            pad.transform.localRotation = Quaternion.Euler(0f, spot.Yaw, 0f);
+            var col = pad.GetComponent<Collider>();
+            if (col != null)
+            {
+                col.enabled = true;
+            }
+
+            pads.Add(pad, spot);
+        }
+
+        pads.Bind(wardrobe.transform, height, zoneMat, chosenMat);
+        pads.MoveTo(0);
+        _wardrobeZone.SetActive(false);
+    }
+
+    public static void ShowWardrobeZone(bool show)
+    {
+        if (_wardrobeZone != null)
+        {
+            _wardrobeZone.SetActive(show);
+        }
+    }
+
     static void DestroyNamed(string name)
     {
         var go = GameObject.Find(name);
@@ -120,10 +188,11 @@ public static class PetRoom
         Object.DestroyImmediate(go);
     }
 
-    static void Box(Transform parent, string name, Vector3 pos, Vector3 scale, Material mat)
+    static GameObject Box(Transform parent, string name, Vector3 pos, Vector3 scale, Material mat)
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
         Place(go, parent, name, pos, Quaternion.identity, scale, mat);
+        return go;
     }
 
     static void Place(GameObject go, Transform parent, string name, Vector3 pos, Quaternion rot, Vector3 scale, Material mat)
@@ -160,5 +229,162 @@ public static class PetRoom
         }
 
         return mat;
+    }
+}
+
+public struct WardrobeSpot
+{
+    public string Name;
+    public Vector3 Position;
+    public float Yaw;
+
+    public static WardrobeSpot AgainstLeft(string name, float wallX, float alongZ, float wallInset, float depth)
+    {
+        return new WardrobeSpot
+        {
+            Name = name,
+            Position = new Vector3(wallX + wallInset + depth * 0.5f, 0f, alongZ),
+            Yaw = 0f
+        };
+    }
+
+    public static WardrobeSpot AgainstRight(string name, float wallX, float alongZ, float wallInset, float depth)
+    {
+        return new WardrobeSpot
+        {
+            Name = name,
+            Position = new Vector3(wallX - wallInset - depth * 0.5f, 0f, alongZ),
+            Yaw = 180f
+        };
+    }
+
+    public static WardrobeSpot AgainstBack(string name, float alongX, float wallZ, float wallInset, float depth)
+    {
+        return new WardrobeSpot
+        {
+            Name = name,
+            Position = new Vector3(alongX, 0f, wallZ - wallInset - depth * 0.5f),
+            Yaw = 90f
+        };
+    }
+
+    public static WardrobeSpot AgainstFront(string name, float alongX, float wallZ, float wallInset, float depth)
+    {
+        return new WardrobeSpot
+        {
+            Name = name,
+            Position = new Vector3(alongX, 0f, wallZ + wallInset + depth * 0.5f),
+            Yaw = -90f
+        };
+    }
+}
+
+public class WardrobePads : MonoBehaviour
+{
+    struct Spot
+    {
+        public Transform Pad;
+        public WardrobeSpot Place;
+    }
+
+    readonly System.Collections.Generic.List<Spot> _spots = new System.Collections.Generic.List<Spot>();
+    Transform _wardrobe;
+    float _height;
+    Material _idle;
+    Material _chosen;
+    int _current = -1;
+    bool _pressed;
+    Vector2 _pressPos;
+
+    public void Add(GameObject pad, WardrobeSpot place)
+    {
+        _spots.Add(new Spot { Pad = pad.transform, Place = place });
+    }
+
+    public void Bind(Transform wardrobe, float height, Material idle, Material chosen)
+    {
+        _wardrobe = wardrobe;
+        _height = height;
+        _idle = idle;
+        _chosen = chosen;
+    }
+
+    public void MoveTo(int index)
+    {
+        if (_wardrobe == null || index < 0 || index >= _spots.Count)
+        {
+            return;
+        }
+
+        var place = _spots[index].Place;
+        _wardrobe.localPosition = new Vector3(place.Position.x, _height * 0.5f, place.Position.z);
+        _wardrobe.localRotation = Quaternion.Euler(0f, place.Yaw, 0f);
+        _current = index;
+        for (int i = 0; i < _spots.Count; i++)
+        {
+            var renderer = _spots[i].Pad.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.sharedMaterial = i == index ? _chosen : _idle;
+            }
+        }
+    }
+
+    void Update()
+    {
+        var mouse = Mouse.current;
+        if (mouse != null)
+        {
+            if (mouse.leftButton.wasPressedThisFrame)
+            {
+                _pressed = true;
+                _pressPos = mouse.position.ReadValue();
+            }
+            else if (_pressed && mouse.leftButton.wasReleasedThisFrame)
+            {
+                TryPick(mouse.position.ReadValue());
+            }
+        }
+
+        var touch = Touchscreen.current;
+        if (touch == null)
+        {
+            return;
+        }
+
+        var press = touch.primaryTouch.press;
+        if (press.wasPressedThisFrame)
+        {
+            _pressed = true;
+            _pressPos = touch.primaryTouch.position.ReadValue();
+        }
+        else if (_pressed && press.wasReleasedThisFrame)
+        {
+            TryPick(touch.primaryTouch.position.ReadValue());
+        }
+    }
+
+    void TryPick(Vector2 position)
+    {
+        _pressed = false;
+        if ((position - _pressPos).sqrMagnitude > 48f * 48f || Camera.main == null)
+        {
+            return;
+        }
+
+        var ray = Camera.main.ScreenPointToRay(position);
+        if (!Physics.Raycast(ray, out var hit, 80f))
+        {
+            return;
+        }
+
+        for (int i = 0; i < _spots.Count; i++)
+        {
+            if (hit.transform == _spots[i].Pad)
+            {
+                MoveTo(i);
+                return;
+            }
+        }
     }
 }
