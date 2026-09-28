@@ -463,6 +463,7 @@ namespace LCT.MiniGames.PiggyCatch
             _playing = false;
             ClearFallers();
             FinanceAudio.Good();
+            MiniGamePayout.GrantForActiveScene();
 
             Level level = Current;
             float fraction = _timeLeft / level.Duration;

@@ -509,6 +509,7 @@ namespace LCT.MiniGames.BudgetWeek
             }
 
             FinanceAudio.Good();
+            MiniGamePayout.GrantForActiveScene();
             int stars = _mood >= 6 ? 3 : _mood >= 3 ? 2 : 1;
             _totalStars += stars;
             bool last = _weekIndex >= Weeks.Length - 1;

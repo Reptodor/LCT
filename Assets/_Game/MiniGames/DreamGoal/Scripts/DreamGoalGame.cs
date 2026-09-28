@@ -504,6 +504,7 @@ namespace LCT.MiniGames.DreamGoal
             _busy = true;
             SetPanelInteractable(false);
             FinanceAudio.Good();
+            MiniGamePayout.GrantForActiveScene();
 
             Level level = Current;
             int weeksLeft = level.Weeks - _week;

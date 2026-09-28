@@ -189,6 +189,7 @@ namespace LCT.MiniGames.Exchange
         {
             if (currentSum == currentBanknoteValue)
             {
+                MiniGamePayout.GrantForActiveScene();
                 AudioManager.Instance.PlayLevelCompleteSound();
 
                 if (UIManager.Instance.levelTimer != null)

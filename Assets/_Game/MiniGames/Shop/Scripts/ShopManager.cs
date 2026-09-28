@@ -651,6 +651,9 @@ namespace LCT.MiniGames.Shop
         {
             if (panelLevelComplete == null) return;
 
+            if (!panelLevelComplete.activeSelf)
+                MiniGamePayout.GrantForActiveScene();
+
             int remaining = budget - spent;
 
             if (titleText != null)

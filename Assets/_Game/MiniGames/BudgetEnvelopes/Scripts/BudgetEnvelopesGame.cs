@@ -477,6 +477,7 @@ namespace LCT.MiniGames.BudgetEnvelopes
         {
             _playing = false;
             FinanceAudio.Good();
+            MiniGamePayout.GrantForActiveScene();
 
             Level level = Current;
             int stars = StarsByTime(_time, level.ThreeStars, level.TwoStars);
