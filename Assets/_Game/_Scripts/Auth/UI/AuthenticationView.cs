@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class AuthenticationView : MonoBehaviour
 {
@@ -24,6 +25,8 @@ public class AuthenticationView : MonoBehaviour
     [SerializeField] private Button _goRegisterButton;
 
     private IAuthService _auth;
+
+    private const string GameSceneName = "Game";
 
     private void Awake()
     {
@@ -88,7 +91,7 @@ public class AuthenticationView : MonoBehaviour
             _auth.SaveDeviceId(DeviceIdentifier.Get());
             // По задаче — просто закрываем регистрацию и можно вернуться к выбору или продолжить.
             Debug.Log("[Auth] Регистрация завершена, можно продолжать игру");
-            ShowChoice();
+            SceneManager.LoadScene(GameSceneName);
         }
     }
 
@@ -100,7 +103,7 @@ public class AuthenticationView : MonoBehaviour
         if (ok)
         {
             Debug.Log("[Auth] Вход выполнен, можно продолжать игру");
-            ShowChoice();
+            SceneManager.LoadScene(GameSceneName);
         }
     }
 }

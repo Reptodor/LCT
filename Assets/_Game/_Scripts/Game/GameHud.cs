@@ -11,7 +11,10 @@ public class GameHud : MonoBehaviour
     [SerializeField] Button _workButton;
     [SerializeField] Button _snackButton;
     [SerializeField] WorkMinigamesView _workGames;
+    [SerializeField] LevelSelectWindow _levelSelectPrefab;
     [SerializeField] SnackShopView _snackShop;
+
+    LevelSelectWindow _levelSelect;
 
     void Awake()
     {
@@ -54,14 +57,42 @@ public class GameHud : MonoBehaviour
 
     void OnWork()
     {
-        EnsureWorkGames();
-        if (_workGames == null || !_workGames.IsReady)
+        LevelSelectWindow window = EnsureLevelSelect();
+        if (window == null)
         {
             SetFeedback("Не вышло открыть подработку");
             return;
         }
 
-        _workGames.Open();
+        window.Open();
+    }
+
+    LevelSelectWindow EnsureLevelSelect()
+    {
+        if (_levelSelect != null)
+        {
+            return _levelSelect;
+        }
+
+        _levelSelect = FindFirstObjectByType<LevelSelectWindow>(FindObjectsInactive.Include);
+        if (_levelSelect != null)
+        {
+            return _levelSelect;
+        }
+
+        if (_levelSelectPrefab == null)
+        {
+            return null;
+        }
+
+        Canvas canvas = FindHudCanvas();
+        if (canvas == null)
+        {
+            return null;
+        }
+
+        _levelSelect = Instantiate(_levelSelectPrefab, canvas.transform);
+        return _levelSelect;
     }
 
     void OnMinigameFinished(int coins)

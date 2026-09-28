@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 public class BootController : MonoBehaviour
 {
-    public const string GameSceneName = "Game";
+    public const string ProfileSetupSceneName = "ProfileSetup";
 
     [SerializeField] LoadingView _loading;
 
@@ -31,7 +31,7 @@ public class BootController : MonoBehaviour
         _loading?.SetStatus("Почти готово…");
         yield return Fill(0.85f, 0.4f);
 
-        if (!CanLoadGameScene())
+        if (!CanLoadProfileSetupScene())
         {
             _loading?.ShowError("Сцена Game не в Build Settings");
             yield break;
@@ -39,7 +39,7 @@ public class BootController : MonoBehaviour
 
         _loading?.SetStatus("Открываем дом…");
         yield return Fill(1f, 0.35f);
-        SceneManager.LoadScene(GameSceneName);
+        SceneManager.LoadScene(ProfileSetupSceneName);
     }
 
     IEnumerator Fill(float target, float duration)
@@ -52,7 +52,7 @@ public class BootController : MonoBehaviour
         yield return _loading.FillTo(target, duration);
     }
 
-    static bool CanLoadGameScene()
+    static bool CanLoadProfileSetupScene()
     {
         int count = SceneManager.sceneCountInBuildSettings;
         for (int i = 0; i < count; i++)
@@ -64,7 +64,7 @@ public class BootController : MonoBehaviour
             }
 
             string name = System.IO.Path.GetFileNameWithoutExtension(path);
-            if (name == GameSceneName)
+            if (name == ProfileSetupSceneName)
             {
                 return true;
             }

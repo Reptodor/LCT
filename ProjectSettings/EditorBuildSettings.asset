@@ -12,8 +12,26 @@ EditorBuildSettings:
     path: Assets/_Game/_Scenes/Game.unity
     guid: 44a87efaae06c12448aa4877d6c4ee98
   - enabled: 1
-    path: Assets/_Game/_Scenes/AR.unity
-    guid: 2b5ff642a1ed344fca996142b082c257
+    path: Assets/_Game/_Scenes/MiniGames/BudgetEnvelopes.unity
+    guid: c33a2d592663747d182a79cf04ccf5b0
+  - enabled: 1
+    path: Assets/_Game/_Scenes/MiniGames/BudgetWeek.unity
+    guid: 17ea3106cdd6f49e692a64277dbc4fa0
+  - enabled: 1
+    path: Assets/_Game/_Scenes/MiniGames/DreamGoal.unity
+    guid: d464775af805046f3b8e78446335cf4e
+  - enabled: 1
+    path: Assets/_Game/_Scenes/MiniGames/Exchange.unity
+    guid: d66a7a343450a45f4ba435f3e62af262
+  - enabled: 1
+    path: Assets/_Game/_Scenes/MiniGames/PiggyCatch.unity
+    guid: 38e5ec7290277462ca3710d5a64df9fb
+  - enabled: 1
+    path: Assets/_Game/_Scenes/MiniGames/Shop.unity
+    guid: 651805f58e9c143d6a2abb3616fdbbda
+  - enabled: 1
+    path: Assets/_Game/_Scenes/ProfileSetup.unity
+    guid: efd25125c745b4664802a00df506506b
   m_configObjects:
     UnityEditor.XR.ARCore.ARCoreSettings: {fileID: 11400000, guid: 6ee72d15cf39dd748a13eac57397b9af, type: 2}
     UnityEditor.XR.ARKit.ARKitSettings: {fileID: 11400000, guid: 0465d33c6aee55f44b0237db8b0e0259, type: 2}

@@ -2576,6 +2576,7 @@ MonoBehaviour:
   _workButton: {fileID: 1877529912}
   _snackButton: {fileID: 1709341113}
   _workGames: {fileID: 585345999}
+  _levelSelectPrefab: {fileID: 810004, guid: d4413f5061728394d0e1f20314253647, type: 3}
   _snackShop: {fileID: 0}
 --- !u!4 &585345998
 Transform:
