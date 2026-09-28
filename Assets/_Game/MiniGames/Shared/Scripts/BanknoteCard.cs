@@ -1,19 +1,17 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.EventSystems;
-
 
 namespace LCT.MiniGames.Shop
 {
-    public class Coin : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    public class BanknoteCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
-        public int denomination;
+        public int value;
 
         private RectTransform rectTransform;
         private CanvasGroup canvasGroup;
         private Vector2 startPos;
         private Transform startParent;
-        private bool isInDropZone = false;
+        private bool isInDropZone;
 
         void Awake()
         {
@@ -27,7 +25,7 @@ namespace LCT.MiniGames.Shop
         {
             startPos = rectTransform.anchoredPosition;
             startParent = transform.parent;
-            isInDropZone = (transform.parent == ShopManager.Instance.dropZone);
+            isInDropZone = MoneyPlayfield.DropZone != null && transform.parent == MoneyPlayfield.DropZone;
         }
 
         public void OnBeginDrag(PointerEventData eventData)
@@ -40,7 +38,9 @@ namespace LCT.MiniGames.Shop
 
         public void OnDrag(PointerEventData eventData)
         {
-            rectTransform.anchoredPosition += eventData.delta / GetComponentInParent<Canvas>().scaleFactor;
+            Canvas canvas = GetComponentInParent<Canvas>();
+            if (canvas != null)
+                rectTransform.anchoredPosition += eventData.delta / canvas.scaleFactor;
         }
 
         public void OnEndDrag(PointerEventData eventData)
@@ -48,12 +48,13 @@ namespace LCT.MiniGames.Shop
             canvasGroup.blocksRaycasts = true;
             canvasGroup.alpha = 1f;
 
+            Transform dropZone = MoneyPlayfield.DropZone;
             GameObject target = eventData.pointerCurrentRaycast.gameObject;
-            bool overDrop = target != null && target.transform.IsChildOf(ShopManager.Instance.dropZone);
+            bool overDrop = dropZone != null && target != null && target.transform.IsChildOf(dropZone);
 
             if (isInDropZone && overDrop)
             {
-                transform.SetParent(ShopManager.Instance.dropZone);
+                transform.SetParent(dropZone);
                 return;
             }
 
@@ -65,9 +66,8 @@ namespace LCT.MiniGames.Shop
 
             if (!isInDropZone && overDrop)
             {
-                ShopManager.Instance.OnCoinDropped(this);
-                //isInDropZone = true;
-                isInDropZone = (transform.parent == ShopManager.Instance.dropZone);
+                MoneyPlayfield.BanknoteDropped?.Invoke(this);
+                isInDropZone = dropZone != null && transform.parent == dropZone;
             }
             else if (!overDrop)
             {
@@ -79,7 +79,7 @@ namespace LCT.MiniGames.Shop
         {
             transform.SetParent(startParent);
             rectTransform.anchoredPosition = startPos;
-            ShopManager.Instance.RemoveCoinFromDrop(this);
+            MoneyPlayfield.BanknoteRemoved?.Invoke(this);
             isInDropZone = false;
         }
     }

@@ -111,6 +111,19 @@ namespace LCT.MiniGames.Shop
             Instance = this;
         }
 
+        void OnEnable()
+        {
+            Instance = this;
+            MoneyPlayfield.Bind(dropZone, OnCoinDropped, RemoveCoinFromDrop, OnBanknoteDropped, RemoveBanknoteFromDrop);
+        }
+
+        void OnDisable()
+        {
+            MoneyPlayfield.Unbind(dropZone);
+            if (Instance == this)
+                Instance = null;
+        }
+
         void Start()
         {
             LoadProgress();
