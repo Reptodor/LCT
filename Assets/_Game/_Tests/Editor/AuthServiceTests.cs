@@ -79,4 +79,49 @@ public class AuthServiceTests
         Assert.AreEqual("old@mail.com", again.LegacySaveOwner);
         Assert.AreEqual("new@mail.com", again.ActiveProfileId);
     }
+
+    [Test]
+    public void LocalSession_ContinuesUntilLogout_WithoutAnAccount()
+    {
+        string path = Path.Combine(_dir, "accounts.json");
+        var auth = new AuthService(path);
+        auth.BeginLocalSession(false);
+
+        Assert.IsTrue(auth.IsLocalSession);
+        Assert.IsFalse(auth.IsDemoSession);
+        Assert.AreEqual(AuthService.GuestProfileId, auth.ActiveProfileId);
+        Assert.IsTrue(auth.HasActiveSession());
+        Assert.IsNull(auth.GetSavedCredentials());
+        Assert.IsFalse(auth.HasSavedCredentials());
+        Assert.IsFalse(auth.RegisterUser(AuthService.GuestProfileId, "secret"));
+
+        var again = new AuthService(path);
+        Assert.IsTrue(again.HasActiveSession());
+        Assert.AreEqual(AuthService.GuestProfileId, again.ActiveProfileId);
+
+        again.Logout();
+        var signedOut = new AuthService(path);
+        Assert.IsFalse(signedOut.HasActiveSession());
+        Assert.AreEqual(string.Empty, signedOut.ActiveProfileId);
+    }
+
+    [Test]
+    public void DemoSession_IsKeptApartFromAccounts()
+    {
+        string path = Path.Combine(_dir, "accounts.json");
+        var auth = new AuthService(path);
+        Assert.IsTrue(auth.RegisterUser("a@mail.com", "secret"));
+        auth.Logout();
+        auth.BeginLocalSession(true);
+
+        Assert.IsTrue(auth.IsDemoSession);
+        Assert.AreEqual(AuthService.DemoProfileId, auth.ActiveProfileId);
+        Assert.IsNull(auth.GetSavedCredentials());
+
+        var again = new AuthService(path);
+        Assert.IsTrue(again.IsDemoSession);
+        Assert.IsTrue(again.LoginUser("a@mail.com", "secret"));
+        Assert.IsFalse(again.IsLocalSession);
+        Assert.AreEqual("a@mail.com", again.ActiveProfileId);
+    }
 }

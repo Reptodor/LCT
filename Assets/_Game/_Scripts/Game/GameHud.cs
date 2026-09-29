@@ -47,9 +47,9 @@ public class GameHud : MonoBehaviour
         EnsureWardrobeButton();
         EnsureSavingsButton();
         EnsureSettingsButton();
-        EnsureDebugCoinsButton();
         HideRoomSwitch();
         EnsureAllowanceTimer();
+        EnsureSkipAllowanceButton();
         if (GameSession.IsReady && Allowance.EnsureSchedule(GameSession.State))
         {
             GameSession.Persist();
@@ -283,93 +283,6 @@ public class GameHud : MonoBehaviour
         button.onClick.AddListener(OnSettings);
     }
 
-    void EnsureDebugCoinsButton()
-    {
-#if !UNITY_EDITOR
-        return;
-#else
-        const int grant = 100;
-        Canvas canvas = FindHudCanvas();
-        if (canvas == null)
-        {
-            return;
-        }
-
-        Transform existing = canvas.transform.Find("DebugCoinsButton");
-        Button button;
-        if (existing != null)
-        {
-            button = existing.GetComponent<Button>();
-        }
-        else
-        {
-            var go = new GameObject("DebugCoinsButton", typeof(RectTransform), typeof(Canvas), typeof(Image), typeof(Button));
-            go.transform.SetParent(canvas.transform, false);
-            var overlay = go.GetComponent<Canvas>();
-            overlay.overrideSorting = true;
-            overlay.sortingOrder = 80;
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(16f, -16f);
-            rect.sizeDelta = new Vector2(220f, 64f);
-
-            var image = go.GetComponent<Image>();
-            image.color = new Color(0.45f, 0.28f, 0.62f, 1f);
-            button = go.GetComponent<Button>();
-            button.targetGraphic = image;
-
-            var labelGo = new GameObject("Label", typeof(RectTransform));
-            labelGo.transform.SetParent(go.transform, false);
-            var labelRect = labelGo.GetComponent<RectTransform>();
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(8f, 4f);
-            labelRect.offsetMax = new Vector2(-8f, -4f);
-            var label = labelGo.AddComponent<TextMeshProUGUI>();
-            label.text = "+" + grant + " монет";
-            label.alignment = TextAlignmentOptions.Center;
-            label.enableAutoSizing = true;
-            label.fontSizeMin = 16f;
-            label.fontSizeMax = 28f;
-            label.color = new Color(1f, 0.96f, 0.88f, 1f);
-            label.raycastTarget = false;
-            if (_petName != null)
-            {
-                label.font = _petName.font;
-            }
-        }
-
-        if (button == null)
-        {
-            return;
-        }
-
-        button.transform.SetAsLastSibling();
-        button.onClick.RemoveAllListeners();
-        button.onClick.AddListener(() => OnDebugCoins(grant));
-#endif
-    }
-
-    void OnDebugCoins(int amount)
-    {
-#if UNITY_EDITOR
-        if (!GameSession.IsReady || !PetActions.TryEarn(GameSession.State, amount))
-        {
-            return;
-        }
-
-        GameSession.Persist();
-        SetFeedback("Тест: +" + amount + " монет");
-        Refresh();
-        if (_savings != null)
-        {
-            _savings.SyncBalance();
-        }
-#endif
-    }
-
     void OnSettings()
     {
         SettingsWindow window = EnsureSettings();
@@ -424,7 +337,15 @@ public class GameHud : MonoBehaviour
 
     void OnLogout()
     {
-        GameSession.Unload();
+        if (GameSession.IsLocalSession)
+        {
+            GameSession.Discard();
+        }
+        else
+        {
+            GameSession.Unload();
+        }
+
         new AuthService().Logout();
         SceneManager.LoadScene(BootController.ProfileSetupSceneName);
     }
@@ -794,6 +715,115 @@ public class GameHud : MonoBehaviour
         label.raycastTarget = false;
         label.text = "";
         _allowanceTimer = label;
+    }
+
+    void EnsureSkipAllowanceButton()
+    {
+        if (_allowanceTimer == null)
+        {
+            return;
+        }
+
+        Transform parent = _allowanceTimer.transform.parent;
+        if (parent == null)
+        {
+            return;
+        }
+
+        Transform existing = parent.Find("SkipAllowanceButton");
+        if (!GameSession.IsDemo)
+        {
+            if (existing != null)
+            {
+                Destroy(existing.gameObject);
+            }
+
+            return;
+        }
+
+        Button button;
+        if (existing != null)
+        {
+            button = existing.GetComponent<Button>();
+        }
+        else
+        {
+            var go = new GameObject("SkipAllowanceButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+            go.transform.SetParent(parent, false);
+            go.transform.SetAsLastSibling();
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -8f);
+            rect.sizeDelta = new Vector2(0f, 48f);
+            var layout = go.GetComponent<LayoutElement>();
+            layout.ignoreLayout = true;
+            var image = go.GetComponent<Image>();
+            image.sprite = SolidSprite();
+            image.type = Image.Type.Simple;
+            image.color = new Color(0.72f, 0.48f, 0.12f, 1f);
+            button = go.GetComponent<Button>();
+            button.targetGraphic = image;
+
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            labelGo.transform.SetParent(go.transform, false);
+            var labelRect = labelGo.GetComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(6f, 2f);
+            labelRect.offsetMax = new Vector2(-6f, -2f);
+            var label = labelGo.AddComponent<TextMeshProUGUI>();
+            label.text = "Пропустить";
+            label.alignment = TextAlignmentOptions.Center;
+            label.fontStyle = FontStyles.Bold;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 14f;
+            label.fontSizeMax = 24f;
+            label.color = new Color(0.16f, 0.1f, 0.04f, 1f);
+            label.raycastTarget = false;
+            label.font = _allowanceTimer.font;
+        }
+
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(OnSkipAllowance);
+    }
+
+    static Sprite _solidSprite;
+
+    static Sprite SolidSprite()
+    {
+        if (_solidSprite == null)
+        {
+            var texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            texture.SetPixel(0, 0, Color.white);
+            texture.Apply();
+            _solidSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
+        }
+
+        return _solidSprite;
+    }
+
+    void OnSkipAllowance()
+    {
+        if (!GameSession.IsDemo || !GameSession.IsReady)
+        {
+            return;
+        }
+
+        if (_allowance != null && _allowance.IsOpen)
+        {
+            return;
+        }
+
+        Allowance.FinishWait(GameSession.State);
+        GameSession.Persist();
+        TickAllowance();
     }
 
     void TickAllowance()

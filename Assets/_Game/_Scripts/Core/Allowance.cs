@@ -46,6 +46,16 @@ public static class Allowance
         return (float)(due - DateTime.UtcNow).TotalSeconds;
     }
 
+    public static void FinishWait(GameState state)
+    {
+        if (state == null)
+        {
+            return;
+        }
+
+        state.nextAllowanceUtc = DateTime.UtcNow.AddSeconds(-1).ToString("o");
+    }
+
     public static void Grant(GameState state)
     {
         if (state == null)

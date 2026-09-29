@@ -23,6 +23,8 @@ public class AuthenticationView : MonoBehaviour
     [Header("Choice UI")]
     [SerializeField] private Button _goLoginButton;
     [SerializeField] private Button _goRegisterButton;
+    [SerializeField] private Button _goGuestButton;
+    [SerializeField] private Button _goDemoButton;
 
     private IAuthService _auth;
     private TMP_Text _status;
@@ -31,9 +33,11 @@ public class AuthenticationView : MonoBehaviour
     private void Awake()
     {
         _auth = _auth ?? new AuthService();
-        // Навешиваем обработчики
+        EnsureLocalButtons();
         _goLoginButton?.onClick.AddListener(ShowLogin);
         _goRegisterButton?.onClick.AddListener(ShowRegister);
+        _goGuestButton?.onClick.AddListener(OnGuestClicked);
+        _goDemoButton?.onClick.AddListener(OnDemoClicked);
         _regSubmitButton?.onClick.AddListener(OnRegisterClicked);
         _loginSubmitButton?.onClick.AddListener(OnLoginClicked);
 
@@ -103,6 +107,20 @@ public class AuthenticationView : MonoBehaviour
         Enter(true);
     }
 
+    private void OnGuestClicked()
+    {
+        _auth.BeginLocalSession(false);
+        Debug.Log("[Auth] Гостевой вход: прогресс сохранится, пока не выйдете из профиля");
+        Enter(false);
+    }
+
+    private void OnDemoClicked()
+    {
+        _auth.BeginLocalSession(true);
+        Debug.Log("[Auth] Демо-вход: таймер монет можно пропускать");
+        Enter(false);
+    }
+
     private void OnLoginClicked()
     {
         string email = _loginEmailInput != null ? _loginEmailInput.text : string.Empty;
@@ -119,7 +137,7 @@ public class AuthenticationView : MonoBehaviour
 
     private bool TryContinueActiveSession()
     {
-        if (_auth.GetSavedCredentials() == null)
+        if (!_auth.HasActiveSession())
         {
             return false;
         }
@@ -140,6 +158,82 @@ public class AuthenticationView : MonoBehaviour
         bool needsPet = createPet || !GameSession.IsReady || !GameSession.State.petLookSet;
         string scene = needsPet ? BootController.PetCustomizeSceneName : BootController.GameSceneName;
         SceneManager.LoadScene(scene);
+    }
+
+    private void EnsureLocalButtons()
+    {
+        if (_choicePanel == null)
+        {
+            return;
+        }
+
+        float step = ChoiceStep();
+        float registerY = _goRegisterButton != null
+            ? _goRegisterButton.GetComponent<RectTransform>().anchoredPosition.y
+            : -125f;
+        if (_goGuestButton == null)
+        {
+            _goGuestButton = CloneChoiceButton("Button (Guest)", "Войти как гость", registerY + step);
+        }
+
+        if (_goDemoButton == null)
+        {
+            _goDemoButton = CloneChoiceButton("Button (Demo)", "Демо", registerY + step * 2f);
+        }
+    }
+
+    private float ChoiceStep()
+    {
+        if (_goLoginButton == null || _goRegisterButton == null)
+        {
+            return -125f;
+        }
+
+        float loginY = _goLoginButton.GetComponent<RectTransform>().anchoredPosition.y;
+        float registerY = _goRegisterButton.GetComponent<RectTransform>().anchoredPosition.y;
+        float step = registerY - loginY;
+        return Mathf.Abs(step) < 1f ? -125f : step;
+    }
+
+    private Button CloneChoiceButton(string name, string label, float y)
+    {
+        Transform existing = _choicePanel.transform.Find(name);
+        if (existing != null)
+        {
+            TMP_Text existingLabel = existing.GetComponentInChildren<TMP_Text>();
+            if (existingLabel != null)
+            {
+                existingLabel.text = label;
+            }
+
+            return existing.GetComponent<Button>();
+        }
+
+        Button source = _goRegisterButton != null ? _goRegisterButton : _goLoginButton;
+        if (source == null)
+        {
+            return null;
+        }
+
+        GameObject copy = Instantiate(source.gameObject, _choicePanel.transform);
+        copy.name = name;
+        RectTransform rect = copy.GetComponent<RectTransform>();
+        rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, y);
+        Button button = copy.GetComponent<Button>();
+        if (button != null)
+        {
+            button.onClick.RemoveAllListeners();
+        }
+
+        TMP_Text text = copy.GetComponentInChildren<TMP_Text>();
+        if (text != null)
+        {
+            text.text = label;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Overflow;
+        }
+
+        return button;
     }
 
     private void ClearStatus()

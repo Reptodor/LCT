@@ -137,6 +137,29 @@ public sealed class SaveService
         }
     }
 
+    public void Delete()
+    {
+        try
+        {
+            if (File.Exists(_filePath))
+            {
+                File.Delete(_filePath);
+            }
+
+            string directory = Path.GetDirectoryName(_filePath);
+            if (!string.IsNullOrEmpty(directory)
+                && Directory.Exists(directory)
+                && Directory.GetFileSystemEntries(directory).Length == 0)
+            {
+                Directory.Delete(directory);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[Monetok] Failed to delete save: {ex.Message}");
+        }
+    }
+
     public void Save(GameState state)
     {
         if (state == null)

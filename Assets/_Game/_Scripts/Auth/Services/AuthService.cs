@@ -6,18 +6,25 @@ using UnityEngine;
 public interface IAuthService
 {
     bool HasSavedCredentials();
+    bool HasActiveSession();
     UserCredentials GetSavedCredentials();
     bool RegisterUser(string email, string password);
     bool LoginUser(string email, string password);
+    void BeginLocalSession(bool demo);
     void SaveDeviceId(string deviceId);
     bool IsDeviceRegistered();
     string ActiveProfileId { get; }
     string LegacySaveOwner { get; }
+    bool IsLocalSession { get; }
+    bool IsDemoSession { get; }
     void Logout();
 }
 
 public sealed class AuthService : IAuthService
 {
+    public const string GuestProfileId = "local-guest";
+    public const string DemoProfileId = "local-demo";
+
     const string KeyEmail = "auth_email";
     const string KeyPassword = "auth_password";
     const string KeyDeviceId = "device_id";
@@ -54,9 +61,23 @@ public sealed class AuthService : IAuthService
 
     public string LegacySaveOwner => _registry.legacyOwnerEmail ?? string.Empty;
 
+    public bool IsLocalSession => IsReservedProfile(ActiveProfileId);
+
+    public bool IsDemoSession => ActiveProfileId == DemoProfileId;
+
     public bool HasSavedCredentials()
     {
         return _registry.accounts != null && _registry.accounts.Length > 0;
+    }
+
+    public bool HasActiveSession()
+    {
+        if (IsLocalSession)
+        {
+            return true;
+        }
+
+        return GetSavedCredentials() != null;
     }
 
     public UserCredentials GetSavedCredentials()
@@ -80,7 +101,7 @@ public sealed class AuthService : IAuthService
             return false;
         }
 
-        if (Find(email) != null)
+        if (IsReservedProfile(email) || Find(email) != null)
         {
             Debug.LogWarning("[Auth] Такой профиль уже есть");
             return false;
@@ -115,6 +136,13 @@ public sealed class AuthService : IAuthService
         Write(_registry);
         Debug.Log($"[Auth] Вход успешен: {email}");
         return true;
+    }
+
+    public void BeginLocalSession(bool demo)
+    {
+        _registry.activeEmail = demo ? DemoProfileId : GuestProfileId;
+        Write(_registry);
+        Debug.Log(demo ? "[Auth] Демо-сессия" : "[Auth] Гостевая сессия");
     }
 
     public void Logout()
@@ -246,6 +274,11 @@ public sealed class AuthService : IAuthService
         {
             Debug.LogError($"[Auth] Failed to write accounts: {ex.Message}");
         }
+    }
+
+    static bool IsReservedProfile(string profileId)
+    {
+        return profileId == GuestProfileId || profileId == DemoProfileId;
     }
 
     static string NormalizeEmail(string email)

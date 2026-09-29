@@ -19,6 +19,7 @@ public class SaveServiceTests
         GameSession.ResetForTests();
         PlayerPrefs.DeleteKey("TotalSaved_" + SaveService.ToFileKey("a@mail.com"));
         PlayerPrefs.DeleteKey("TotalSaved_" + SaveService.ToFileKey("b@mail.com"));
+        PlayerPrefs.DeleteKey("TotalSaved_" + SaveService.ToFileKey(AuthService.GuestProfileId));
         if (Directory.Exists(_dir))
         {
             Directory.Delete(_dir, true);
@@ -131,6 +132,37 @@ public class SaveServiceTests
 
         GameSession.BindProfile(_dir, "b@mail.com");
         Assert.AreEqual(40, GameSession.State.coins);
+    }
+
+    [Test]
+    public void Discard_DropsLocalProgressAndLeavesTheDeviceSave()
+    {
+        string legacy = "{\"petName\":\"Финашка\",\"coins\":40,\"hunger\":70,\"lastSaveUtc\":\"x\"}";
+        File.WriteAllText(Path.Combine(_dir, SaveService.FileName), legacy);
+
+        GameSession.BindProfile(_dir, AuthService.GuestProfileId, "old@mail.com");
+        Assert.AreEqual(100, GameSession.State.coins);
+        Assert.IsTrue(File.Exists(Path.Combine(_dir, SaveService.FileName)));
+        GameSession.State.coins = 15;
+        GameSession.State.petLookSet = true;
+        string shopKey = GameSession.ShopSavingsKey();
+        PlayerPrefs.SetInt(shopKey, 9);
+        GameSession.Persist();
+
+        string profileFile = Path.Combine(
+            SaveService.ProfileDirectory(_dir, AuthService.GuestProfileId),
+            SaveService.FileName);
+        Assert.IsTrue(File.Exists(profileFile));
+
+        GameSession.Discard();
+        Assert.IsFalse(GameSession.IsReady);
+        Assert.IsFalse(File.Exists(profileFile));
+        Assert.IsFalse(PlayerPrefs.HasKey(shopKey));
+        Assert.IsTrue(File.Exists(Path.Combine(_dir, SaveService.FileName)));
+
+        GameSession.BindProfile(_dir, AuthService.GuestProfileId);
+        Assert.AreEqual(100, GameSession.State.coins);
+        Assert.IsFalse(GameSession.State.petLookSet);
     }
 
     [Test]

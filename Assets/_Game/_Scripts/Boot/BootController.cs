@@ -47,7 +47,7 @@ public class BootController : MonoBehaviour
     static string ResolveLaunchScene()
     {
         var auth = new AuthService();
-        if (auth.GetSavedCredentials() == null)
+        if (!auth.HasActiveSession())
         {
             return ProfileSetupSceneName;
         }
