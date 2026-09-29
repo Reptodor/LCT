@@ -35,12 +35,44 @@ namespace LCT.Editor
 
             if (SessionState.GetBool(SessionKey, false))
             {
+                _ = EnsureBridgeAsync();
                 return;
             }
 
             SessionState.SetBool(SessionKey, true);
             EditorApplication.delayCall += FinashkaAndroidGameView.Apply;
             _ = StartAsync();
+        }
+
+        private static async Task EnsureBridgeAsync()
+        {
+            try
+            {
+                if (MCPServiceLocator.Bridge.IsRunning)
+                {
+                    return;
+                }
+
+                WriteStatus("reconnect-starting");
+
+                if (!MCPServiceLocator.Server.IsLocalHttpServerReachable())
+                {
+                    bool started = MCPServiceLocator.Server.StartLocalHttpServer(quiet: true);
+                    WriteStatus(started ? "http-server-started" : "http-server-start-failed");
+                }
+                else
+                {
+                    WriteStatus("http-server-already-up");
+                }
+
+                bool connected = await MCPServiceLocator.Bridge.StartAsync();
+                WriteStatus(connected ? "bridge-connected" : "bridge-connect-failed");
+            }
+            catch (Exception ex)
+            {
+                WriteStatus("reconnect-error: " + ex.Message);
+                Debug.LogError("[LCT MCP] Reconnect failed: " + ex);
+            }
         }
 
         private static async Task StartAsync()

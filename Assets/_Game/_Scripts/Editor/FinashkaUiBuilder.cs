@@ -11,7 +11,7 @@ public static class FinashkaUiBuilder
     const string GamePath = "Assets/_Game/_Scenes/Game.unity";
 
     static readonly Color Bg = new Color(0.12f, 0.22f, 0.12f, 1f);
-    static readonly Color GameBg = new Color(0.12f, 0.22f, 0.12f, 1f);
+    static readonly Color GameBg = new Color(0.18f, 0.22f, 0.25f, 1f);
     static readonly Color Cream = new Color(1f, 0.97f, 0.88f, 1f);
     static readonly Color Gold = new Color(0.86f, 0.58f, 0.08f, 1f);
     static readonly Color Caption = new Color(0.93f, 0.95f, 0.82f, 1f);
@@ -19,6 +19,7 @@ public static class FinashkaUiBuilder
     static readonly Color Outline = new Color(0.07f, 0.12f, 0.05f, 0.92f);
     static readonly Color Work = new Color(0.95f, 0.74f, 0.18f, 1f);
     static readonly Color Snack = new Color(0.7f, 0.32f, 0.14f, 1f);
+    static readonly Color Wardrobe = new Color(0.55f, 0.36f, 0.20f, 1f);
     static readonly Color Track = new Color(0.08f, 0.14f, 0.07f, 0.45f);
     static readonly Color Fill = new Color(0.86f, 0.58f, 0.08f, 1f);
     static readonly Color Feedback = new Color(1f, 0.97f, 0.88f, 1f);
@@ -396,11 +397,13 @@ public static class FinashkaUiBuilder
         MakeReadable(title, Gold);
         title.characterSpacing = 6f;
         PrefHeight(title.gameObject, 84f);
+        title.GetComponent<LayoutElement>().ignoreLayout = true;
 
         var stats = new GameObject("Stats", typeof(RectTransform));
         stats.transform.SetParent(top.transform, false);
         Row(stats, new RectOffset(0, 0, 0, 0), 20f);
         PrefHeight(stats, 160f);
+        stats.GetComponent<LayoutElement>().ignoreLayout = true;
 
         var coinsCard = StatCard(stats.transform, "CoinsCard", "Coins", "монеты", "100", LoadSprite(CoinIconPath));
         var hungerCard = StatCard(stats.transform, "HungerCard", "Hunger", "сытость", "80", LoadSprite(HungerIconPath));
@@ -418,6 +421,7 @@ public static class FinashkaUiBuilder
 
         var work = BigButton(bottom.transform, "WorkButton", "Подработать", Work, Ink);
         var snack = BigButton(bottom.transform, "SnackButton", "Перекус", Snack, Cream);
+        BigButton(bottom.transform, "WardrobeButton", "Расстановка", Wardrobe, Cream);
 
         var hudGo = GameObject.Find("GameHud");
         if (hudGo == null)
@@ -446,7 +450,9 @@ public static class FinashkaUiBuilder
     {
         var card = new GameObject(cardName, typeof(RectTransform), typeof(LayoutElement), typeof(HorizontalLayoutGroup));
         card.transform.SetParent(parent, false);
-        card.GetComponent<LayoutElement>().flexibleWidth = 1f;
+        var cardLayout = card.GetComponent<LayoutElement>();
+        cardLayout.flexibleWidth = 1f;
+        cardLayout.ignoreLayout = true;
         var row = card.GetComponent<HorizontalLayoutGroup>();
         row.padding = new RectOffset(4, 4, 4, 4);
         row.spacing = 12f;
@@ -481,14 +487,20 @@ public static class FinashkaUiBuilder
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
 
-        var valueLabel = Label(texts.transform, valueName, value, 56f, 72f, FontStyles.Bold, Ink, TextAlignmentOptions.MidlineLeft);
-        MakeReadable(valueLabel, Ink);
+        Color valueColor = cardName == "CoinsCard"
+            ? new Color(0.98f, 0.86f, 0.32f, 1f)
+            : new Color(1f, 0.64f, 0.38f, 1f);
+        Color captionColor = cardName == "CoinsCard"
+            ? new Color(1f, 0.96f, 0.86f, 1f)
+            : new Color(1f, 0.93f, 0.84f, 1f);
+        var valueLabel = Label(texts.transform, valueName, value, 56f, 72f, FontStyles.Bold, valueColor, TextAlignmentOptions.MidlineLeft);
+        MakeReadable(valueLabel, valueColor);
         valueLabel.textWrappingMode = TextWrappingModes.NoWrap;
         valueLabel.margin = Vector4.zero;
         PrefHeight(valueLabel.gameObject, 88f);
 
-        var captionLabel = Label(texts.transform, "Caption", caption, 28f, 36f, FontStyles.Bold, Ink, TextAlignmentOptions.MidlineLeft);
-        MakeReadable(captionLabel, Ink);
+        var captionLabel = Label(texts.transform, "Caption", caption, 28f, 36f, FontStyles.Bold, captionColor, TextAlignmentOptions.MidlineLeft);
+        MakeReadable(captionLabel, captionColor);
         captionLabel.textWrappingMode = TextWrappingModes.NoWrap;
         captionLabel.margin = Vector4.zero;
         PrefHeight(captionLabel.gameObject, 48f);
@@ -770,7 +782,8 @@ public static class FinashkaUiBuilder
 [InitializeOnLoad]
 static class FinashkaApplyLargeStats
 {
-    const string Key = "Finashka.Room3D.v5";
+    const string Key = "Finashka.Room3D.v8";
+    static double _waitUntil;
 
     static FinashkaApplyLargeStats()
     {
@@ -781,6 +794,27 @@ static class FinashkaApplyLargeStats
     {
         if (SessionState.GetBool(Key, false) || EditorApplication.isPlayingOrWillChangePlaymode)
         {
+            return;
+        }
+
+        if (EditorApplication.isCompiling || EditorApplication.isUpdating)
+        {
+            EditorApplication.delayCall += Run;
+            return;
+        }
+
+        if (Resources.Load<GameObject>("House") == null)
+        {
+            if (_waitUntil <= 0d)
+            {
+                _waitUntil = EditorApplication.timeSinceStartup + 90d;
+            }
+
+            if (EditorApplication.timeSinceStartup < _waitUntil)
+            {
+                EditorApplication.delayCall += Run;
+            }
+
             return;
         }
 

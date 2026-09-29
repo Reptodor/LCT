@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -35,8 +36,13 @@ public static class PetRoom
 
     static void BuildApartment(Camera cam)
     {
-        DestroyNamed("RoomBackground");
-        DestroyNamed("Room");
+        if (TryBuildModelerHouse(cam))
+        {
+            return;
+        }
+
+        DestroyRootsNamed("RoomBackground");
+        DestroyRootsNamed("Room");
 
         var room = new GameObject("Room");
         const float livingW = 4.35f;
@@ -84,7 +90,11 @@ public static class PetRoom
             const float petScale = 0.55f;
             pet.transform.localScale = Vector3.one * petScale;
             pet.transform.SetPositionAndRotation(new Vector3(livingX, petScale, 0f), Quaternion.identity);
-            PetWalk.Attach(pet, cam, livingX, bathX);
+            PetWalk.Attach(pet, cam, new[]
+            {
+                new Vector3(livingX, 0.4f, 0f),
+                new Vector3(bathX, 0.4f, 0f)
+            }, new[] { 5.15f, 5.15f }, 0, new[] { "MainRoom", "Bath" });
         }
 
         if (cam != null)
@@ -95,8 +105,7 @@ public static class PetRoom
             var lookDir = new Vector3(0f, -Mathf.Sin(rad), Mathf.Cos(rad));
             cam.orthographic = true;
             cam.orthographicSize = 4.25f;
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.36f, 0.12f, 0.46f, 1f);
+            PlaceVoid(cam);
             cam.nearClipPlane = 0.05f;
             cam.farClipPlane = 50f;
             cam.transform.SetPositionAndRotation(focus - lookDir * 14f, Quaternion.Euler(pitch, 0f, 0f));
@@ -111,6 +120,300 @@ public static class PetRoom
             sun.intensity = 1.15f;
             sun.transform.rotation = Quaternion.Euler(68f, -24f, 0f);
         }
+    }
+
+    static bool TryBuildModelerHouse(Camera cam)
+    {
+        var prefab = Resources.Load<GameObject>("House");
+        if (prefab == null)
+        {
+            return false;
+        }
+
+        DestroyRootsNamed("RoomBackground");
+        DestroyRootsNamed("Room");
+        DestroyRootsNamed("House");
+
+        var house = Object.Instantiate(prefab);
+        house.name = "House";
+        house.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+        house.transform.localScale = new Vector3(1f, 1f, -1f);
+
+        string[] shellNames = { "MainRoom", "Kitchen", "BedRoom", "Bath" };
+        var foci = new List<Vector3>();
+        var widths = new List<float>();
+        var boxes = new List<Bounds>();
+        var names = new List<string>();
+        for (int i = 0; i < shellNames.Length; i++)
+        {
+            var shell = FindShell(house.transform, shellNames[i]);
+            if (shell == null || !TryBounds(shell, out Bounds bounds))
+            {
+                continue;
+            }
+
+            boxes.Add(bounds);
+            foci.Add(bounds.center);
+            widths.Add(ViewWidthFor(bounds));
+            names.Add(shellNames[i]);
+        }
+
+        if (foci.Count == 0)
+        {
+            if (!TryBounds(house.transform, out Bounds all))
+            {
+                return true;
+            }
+
+            boxes.Add(all);
+            foci.Add(all.center);
+            widths.Add(ViewWidthFor(all));
+            names.Add("MainRoom");
+        }
+
+        SortRooms(foci, widths, boxes, names);
+
+        var pet = GameObject.Find("Monetok");
+        int start = 0;
+        if (pet != null)
+        {
+            start = RoomContaining(pet.transform.position, boxes);
+        }
+
+        var rooms = foci.ToArray();
+        var roomWidths = widths.ToArray();
+        if (pet != null)
+        {
+            PetWalk.Attach(pet, cam, rooms, roomWidths, start, names.ToArray());
+        }
+
+        if (cam != null)
+        {
+            cam.orthographic = true;
+            PlaceVoid(cam);
+            cam.nearClipPlane = 0.05f;
+            cam.farClipPlane = 80f;
+        }
+
+        var sun = Object.FindFirstObjectByType<Light>();
+        if (sun != null)
+        {
+            sun.type = LightType.Directional;
+            sun.shadows = LightShadows.Soft;
+            sun.color = new Color(1f, 0.96f, 0.90f, 1f);
+            sun.intensity = 1.15f;
+            sun.transform.rotation = Quaternion.Euler(68f, -24f, 0f);
+        }
+
+        LivingFurnish.Install(house);
+        return true;
+    }
+
+    static void PlaceVoid(Camera cam)
+    {
+        var bottom = new Color(0.11f, 0.13f, 0.15f, 1f);
+        var top = new Color(0.34f, 0.43f, 0.48f, 1f);
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = bottom;
+
+        var existing = cam.transform.Find("RoomVoid");
+        if (existing != null)
+        {
+            Gone(existing.gameObject);
+        }
+
+        var shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader == null)
+        {
+            shader = Shader.Find("Unlit/Texture");
+        }
+
+        if (shader == null)
+        {
+            return;
+        }
+
+        const int h = 64;
+        var tex = new Texture2D(4, h, TextureFormat.RGB24, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        for (int y = 0; y < h; y++)
+        {
+            float t = y / (h - 1f);
+            float u = t * t * (3f - 2f * t);
+            var color = Color.Lerp(bottom, top, u);
+            for (int x = 0; x < 4; x++)
+            {
+                tex.SetPixel(x, y, color);
+            }
+        }
+
+        tex.Apply();
+        var mat = new Material(shader);
+        mat.mainTexture = tex;
+        if (mat.HasProperty("_BaseMap"))
+        {
+            mat.SetTexture("_BaseMap", tex);
+        }
+
+        if (mat.HasProperty("_BaseColor"))
+        {
+            mat.SetColor("_BaseColor", Color.white);
+        }
+
+        var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        quad.name = "RoomVoid";
+        var collider = quad.GetComponent<Collider>();
+        if (collider != null)
+        {
+            Gone(collider);
+        }
+
+        quad.transform.SetParent(cam.transform, false);
+        quad.transform.localPosition = new Vector3(0f, 0f, 40f);
+        quad.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+        quad.transform.localScale = new Vector3(90f, 90f, 1f);
+        var renderer = quad.GetComponent<MeshRenderer>();
+        renderer.sharedMaterial = mat;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+    }
+
+    static void Gone(Object obj)
+    {
+        if (Application.isPlaying)
+        {
+            Object.Destroy(obj);
+        }
+        else
+        {
+            Object.DestroyImmediate(obj);
+        }
+    }
+
+    static Transform FindShell(Transform root, string name)
+    {
+        Transform shell = null;
+        var found = new List<Transform>();
+        CollectNamed(root, name, found);
+        for (int i = 0; i < found.Count; i++)
+        {
+            var candidate = found[i];
+            if (candidate.GetComponent<Renderer>() == null)
+            {
+                continue;
+            }
+
+            if (shell == null || candidate.childCount < shell.childCount)
+            {
+                shell = candidate;
+            }
+        }
+
+        return shell;
+    }
+
+    static void CollectNamed(Transform root, string name, List<Transform> found)
+    {
+        if (root.name == name)
+        {
+            found.Add(root);
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            CollectNamed(root.GetChild(i), name, found);
+        }
+    }
+
+    static void SortRooms(List<Vector3> foci, List<float> widths, List<Bounds> boxes, List<string> names)
+    {
+        for (int i = 0; i < foci.Count; i++)
+        {
+            int best = i;
+            for (int j = i + 1; j < foci.Count; j++)
+            {
+                if (foci[j].x < foci[best].x || (Mathf.Abs(foci[j].x - foci[best].x) < 0.2f && foci[j].z < foci[best].z))
+                {
+                    best = j;
+                }
+            }
+
+            if (best == i)
+            {
+                continue;
+            }
+
+            (foci[i], foci[best]) = (foci[best], foci[i]);
+            (widths[i], widths[best]) = (widths[best], widths[i]);
+            (boxes[i], boxes[best]) = (boxes[best], boxes[i]);
+            if (names != null && i < names.Count && best < names.Count)
+            {
+                (names[i], names[best]) = (names[best], names[i]);
+            }
+        }
+    }
+
+    static int RoomContaining(Vector3 point, List<Bounds> boxes)
+    {
+        int best = 0;
+        float bestArea = float.MaxValue;
+        float bestDist = float.MaxValue;
+        bool found = false;
+        for (int i = 0; i < boxes.Count; i++)
+        {
+            Bounds box = boxes[i];
+            box.Expand(new Vector3(0.75f, 4f, 0.75f));
+            var flat = new Vector2(point.x - box.center.x, point.z - box.center.z);
+            float dist = flat.sqrMagnitude;
+            bool inside = point.x >= box.min.x && point.x <= box.max.x && point.z >= box.min.z && point.z <= box.max.z;
+            if (inside)
+            {
+                float area = box.size.x * box.size.z;
+                if (!found || area < bestArea)
+                {
+                    found = true;
+                    best = i;
+                    bestArea = area;
+                }
+            }
+
+            if (!found && dist < bestDist)
+            {
+                bestDist = dist;
+                best = i;
+            }
+        }
+
+        return best;
+    }
+
+    static float ViewWidthFor(Bounds bounds)
+    {
+        float aspect = Mathf.Max(0.35f, (float)Screen.width / Mathf.Max(1, Screen.height));
+        float rad = 56f * Mathf.Deg2Rad;
+        float orthoForWidth = bounds.size.x / (2f * aspect);
+        float orthoForDepth = bounds.size.z * Mathf.Sin(rad) / 2f;
+        float ortho = Mathf.Max(orthoForWidth, orthoForDepth, 2.2f) * 1.12f;
+        return ortho * 2f * aspect;
+    }
+
+    static bool TryBounds(Transform root, out Bounds bounds)
+    {
+        var renderers = root.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+        {
+            bounds = default;
+            return false;
+        }
+
+        bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        return true;
     }
 
     // Площадки шкафа. Чтобы добавить место, допиши строку в список ниже.
@@ -177,15 +480,16 @@ public static class PetRoom
         }
     }
 
-    static void DestroyNamed(string name)
+    static void DestroyRootsNamed(string name)
     {
-        var go = GameObject.Find(name);
-        if (go == null)
+        var roots = SceneManager.GetActiveScene().GetRootGameObjects();
+        for (int i = 0; i < roots.Length; i++)
         {
-            return;
+            if (roots[i] != null && roots[i].name == name)
+            {
+                Object.DestroyImmediate(roots[i]);
+            }
         }
-
-        Object.DestroyImmediate(go);
     }
 
     static GameObject Box(Transform parent, string name, Vector3 pos, Vector3 scale, Material mat)

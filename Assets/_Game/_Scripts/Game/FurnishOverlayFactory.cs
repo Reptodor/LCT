@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public static class SnackOverlayFactory
+public static class FurnishOverlayFactory
 {
     static readonly Color Cream = new Color(1f, 0.97f, 0.88f, 1f);
     static readonly Color Gold = new Color(0.96f, 0.78f, 0.28f, 1f);
@@ -10,18 +10,16 @@ public static class SnackOverlayFactory
     static readonly Color Dim = new Color(0.04f, 0.08f, 0.03f, 0.78f);
     static readonly Color Sheet = new Color(0.16f, 0.32f, 0.18f, 0.98f);
     static readonly Color Card = new Color(0.10f, 0.22f, 0.12f, 1f);
-    static readonly Color Buy = new Color(0.95f, 0.74f, 0.18f, 1f);
-    static readonly Color Ink = new Color(0.14f, 0.16f, 0.08f, 1f);
 
-    public static void Build(Transform canvas, SnackShopView view)
+    public static void Build(Transform canvas, FurnishWindow view)
     {
-        Transform existing = canvas.Find("SnackOverlay");
+        Transform existing = canvas.Find("FurnishOverlay");
         if (existing != null)
         {
             Object.DestroyImmediate(existing.gameObject);
         }
 
-        var overlay = new GameObject("SnackOverlay", typeof(RectTransform), typeof(CanvasGroup));
+        var overlay = new GameObject("FurnishOverlay", typeof(RectTransform), typeof(CanvasGroup));
         Stretch(overlay, canvas);
         var group = overlay.GetComponent<CanvasGroup>();
         group.alpha = 0f;
@@ -50,30 +48,13 @@ public static class SnackOverlayFactory
         Stretch(motion, sheet.transform);
         Column(motion, new RectOffset(28, 28, 24, 24), 12f, TextAnchor.UpperCenter);
 
-        var header = new GameObject("Header", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-        header.transform.SetParent(motion.transform, false);
-        PrefHeight(header, 84f);
-        var headerRow = header.GetComponent<HorizontalLayoutGroup>();
-        headerRow.spacing = 16f;
-        headerRow.childAlignment = TextAnchor.MiddleCenter;
-        headerRow.childControlWidth = true;
-        headerRow.childControlHeight = true;
-        headerRow.childForceExpandWidth = true;
-        headerRow.childForceExpandHeight = true;
-        var title = Label(header.transform, "SnackTitle", "Перекус", 28f, 40f, FontStyles.Bold, Gold, TextAlignmentOptions.MidlineLeft);
-        title.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
-        var close = SlimButton(header.transform, "CloseSnackButton", "Закрыть", Snack, Cream, 76f);
-        var closeLayout = close.GetComponent<LayoutElement>();
-        closeLayout.flexibleWidth = 0f;
-        closeLayout.preferredWidth = 196f;
+        var header = Label(motion.transform, "Title", "Расстановка", 34f, 52f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
+        PrefHeight(header.gameObject, 56f);
 
-        var coins = Label(motion.transform, "SnackCoins", "Монеты: 100", 22f, 34f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
-        PrefHeight(coins.gameObject, 40f);
-
-        var intro = Label(motion.transform, "SnackIntro", "Разная еда — разная цена. Дороже обычно сытнее.", 18f, 28f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
+        var intro = Label(motion.transform, "Hint", "Пока только картинки. Выбрать предмет ещё нельзя.", 18f, 28f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
         PrefHeight(intro.gameObject, 64f);
 
-        var scrollGo = new GameObject("FoodScroll", typeof(RectTransform), typeof(Image), typeof(Mask), typeof(ScrollRect), typeof(LayoutElement));
+        var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(Mask), typeof(ScrollRect), typeof(LayoutElement));
         scrollGo.transform.SetParent(motion.transform, false);
         Paint(scrollGo, new Color(0f, 0f, 0f, 0.12f), true);
         scrollGo.GetComponent<Mask>().showMaskGraphic = false;
@@ -102,49 +83,70 @@ public static class SnackOverlayFactory
         scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 24f;
 
-        var buyButtons = new Button[FoodCatalog.All.Length];
-        for (int i = 0; i < FoodCatalog.All.Length; i++)
+        var rooms = new FurnishRoomRows[FurnishCatalog.Sections.Length];
+        for (int s = 0; s < FurnishCatalog.Sections.Length; s++)
         {
-            buyButtons[i] = FoodCard(content.transform, FoodCatalog.All[i], i);
+            FurnishSection section = FurnishCatalog.Sections[s];
+            var rowList = new System.Collections.Generic.List<GameObject>();
+            for (int i = 0; i < section.Items.Length; i++)
+            {
+                rowList.Add(ItemCard(content.transform, section.Items[i], view));
+            }
+
+            rooms[s] = new FurnishRoomRows(section.RoomId, section.Title, rowList.ToArray());
         }
 
-        var status = Label(motion.transform, "SnackStatus", "Выбери еду. Дороже — сытнее.", 18f, 28f, FontStyles.Bold, Cream, TextAlignmentOptions.Center);
-        PrefHeight(status.gameObject, 56f);
-
-        var visuals = new RectTransform[buyButtons.Length];
-        for (int i = 0; i < buyButtons.Length; i++)
-        {
-            var visual = content.transform.Find("Food_" + i + "/Visual") as RectTransform;
-            visuals[i] = visual;
-        }
-
-        view.Setup(overlay, dimBtn, close, coins, status, buyButtons, group, motion.GetComponent<RectTransform>(), visuals);
+        SlimButton(motion.transform, "CloseButton", "Закрыть", Snack, Cream, 96f);
+        view.Setup(
+            overlay,
+            dimBtn,
+            motion.transform.Find("CloseButton").GetComponent<Button>(),
+            header,
+            scroll,
+            rooms,
+            group,
+            motion.GetComponent<RectTransform>());
     }
 
-    static Button FoodCard(Transform parent, FoodItem food, int index)
+    static GameObject ItemCard(Transform parent, FurnishEntry entry, FurnishWindow view)
     {
-        var go = new GameObject("Food_" + index, typeof(RectTransform), typeof(LayoutElement));
+        var go = new GameObject(entry.Id, typeof(RectTransform), typeof(LayoutElement));
         go.transform.SetParent(parent, false);
-        PrefHeight(go, 176f);
-        var visualGo = new GameObject("Visual", typeof(RectTransform), typeof(CanvasGroup), typeof(Image), typeof(VerticalLayoutGroup));
+        PrefHeight(go, 168f);
+        var visualGo = new GameObject("Visual", typeof(RectTransform), typeof(CanvasGroup), typeof(Image), typeof(HorizontalLayoutGroup));
         Stretch(visualGo, go.transform);
-        Paint(visualGo, Card, false);
-        var column = visualGo.GetComponent<VerticalLayoutGroup>();
-        column.padding = new RectOffset(16, 16, 12, 12);
-        column.spacing = 4f;
-        column.childAlignment = TextAnchor.MiddleCenter;
-        column.childControlWidth = true;
-        column.childControlHeight = true;
-        column.childForceExpandWidth = true;
-        column.childForceExpandHeight = false;
+        Paint(visualGo, Card, true);
+        var row = visualGo.GetComponent<HorizontalLayoutGroup>();
+        row.padding = new RectOffset(16, 16, 12, 12);
+        row.spacing = 16f;
+        row.childAlignment = TextAnchor.MiddleCenter;
+        row.childControlWidth = true;
+        row.childControlHeight = true;
+        row.childForceExpandWidth = false;
+        row.childForceExpandHeight = true;
 
-        var title = Label(visualGo.transform, "Title", food.Title, 26f, 38f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
-        PrefHeight(title.gameObject, 40f);
-        var price = Label(visualGo.transform, "Price", food.Cost + " монет  ·  +" + food.Hunger + " сытости", 18f, 26f, FontStyles.Bold, Cream, TextAlignmentOptions.Center);
-        PrefHeight(price.gameObject, 32f);
-        var hint = Label(visualGo.transform, "Hint", food.Hint, 16f, 22f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
-        PrefHeight(hint.gameObject, 28f);
-        return SlimButton(visualGo.transform, "BuyButton", "Купить", Buy, Ink, 52f);
+        var pictureGo = new GameObject("Picture", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        pictureGo.transform.SetParent(visualGo.transform, false);
+        var picture = pictureGo.GetComponent<Image>();
+        picture.sprite = Resources.Load<Sprite>("FurniturePreviews/" + entry.Id);
+        picture.preserveAspect = true;
+        picture.raycastTarget = false;
+        picture.color = Color.white;
+        var pictureLayout = pictureGo.GetComponent<LayoutElement>();
+        pictureLayout.minWidth = 132f;
+        pictureLayout.preferredWidth = 132f;
+        pictureLayout.minHeight = 132f;
+        pictureLayout.preferredHeight = 132f;
+        pictureLayout.flexibleWidth = 0f;
+
+        var title = Label(visualGo.transform, "Title", entry.Title, 22f, 34f, FontStyles.Bold, Cream, TextAlignmentOptions.MidlineLeft);
+        title.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+        var button = go.AddComponent<Button>();
+        button.targetGraphic = visualGo.GetComponent<Image>();
+        button.transition = Selectable.Transition.ColorTint;
+        string itemId = entry.Id;
+        button.onClick.AddListener(() => view.Choose(itemId));
+        return go;
     }
 
     static void Stretch(GameObject go, Transform parent)

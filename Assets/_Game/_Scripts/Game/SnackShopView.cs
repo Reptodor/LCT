@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,8 +12,12 @@ public class SnackShopView : MonoBehaviour
     [SerializeField] TMP_Text _coins;
     [SerializeField] TMP_Text _status;
     [SerializeField] Button[] _buyButtons;
+    CanvasGroup _group;
+    RectTransform _motion;
+    RectTransform[] _cards = System.Array.Empty<RectTransform>();
 
     bool _uiBound;
+    bool _busy;
     Action<FoodItem> _onBought;
 
     public bool IsReady => _root != null && _buyButtons != null && _buyButtons.Length == FoodCatalog.All.Length;
@@ -22,7 +27,16 @@ public class SnackShopView : MonoBehaviour
         _onBought = onBought;
     }
 
-    public void Setup(GameObject root, Button dimButton, Button closeButton, TMP_Text coins, TMP_Text status, Button[] buyButtons)
+    public void Setup(
+        GameObject root,
+        Button dimButton,
+        Button closeButton,
+        TMP_Text coins,
+        TMP_Text status,
+        Button[] buyButtons,
+        CanvasGroup group,
+        RectTransform motion,
+        RectTransform[] cards)
     {
         _root = root;
         _dimButton = dimButton;
@@ -30,6 +44,9 @@ public class SnackShopView : MonoBehaviour
         _coins = coins;
         _status = status;
         _buyButtons = buyButtons;
+        _group = group;
+        _motion = motion;
+        _cards = cards ?? System.Array.Empty<RectTransform>();
         BindUi();
     }
 
@@ -67,9 +84,9 @@ public class SnackShopView : MonoBehaviour
 
     public void Open()
     {
-        if (_root != null)
+        if (_root == null || _busy)
         {
-            _root.SetActive(true);
+            return;
         }
 
         if (_status != null)
@@ -78,10 +95,70 @@ public class SnackShopView : MonoBehaviour
         }
 
         RefreshAffordability();
+        _root.SetActive(true);
+        _root.transform.SetAsLastSibling();
+        StopAllCoroutines();
+        StartCoroutine(OpenRoutine());
     }
 
     public void Close()
     {
+        if (_root == null || !_root.activeSelf)
+        {
+            return;
+        }
+
+        StopAllCoroutines();
+        StartCoroutine(CloseRoutine());
+    }
+
+    IEnumerator OpenRoutine()
+    {
+        _busy = true;
+        HudSheetMotion.SnapHidden(_group, _motion, _cards);
+        float time = 0f;
+        while (time < HudSheetMotion.OpenDuration)
+        {
+            time += Time.unscaledDeltaTime;
+            HudSheetMotion.ApplyOpen(Mathf.Clamp01(time / HudSheetMotion.OpenDuration), _group, _motion);
+            yield return null;
+        }
+
+        HudSheetMotion.ApplyOpen(1f, _group, _motion);
+        if (_group != null)
+        {
+            _group.blocksRaycasts = true;
+            _group.interactable = true;
+        }
+
+        float total = HudSheetMotion.CardTotal(_cards.Length);
+        time = 0f;
+        while (time < total)
+        {
+            time += Time.unscaledDeltaTime;
+            HudSheetMotion.PlaceCards(_cards, time);
+            yield return null;
+        }
+
+        HudSheetMotion.PlaceCards(_cards, total);
+        _busy = false;
+    }
+
+    IEnumerator CloseRoutine()
+    {
+        _busy = true;
+        float fromAlpha = _group != null ? _group.alpha : 1f;
+        float fromScale = _motion != null ? _motion.localScale.x : 1f;
+        Vector2 fromPos = _motion != null ? _motion.anchoredPosition : Vector2.zero;
+        float time = 0f;
+        while (time < HudSheetMotion.CloseDuration)
+        {
+            time += Time.unscaledDeltaTime;
+            HudSheetMotion.ApplyClose(Mathf.Clamp01(time / HudSheetMotion.CloseDuration), _group, _motion, fromAlpha, fromScale, fromPos);
+            yield return null;
+        }
+
+        _busy = false;
         Hide();
     }
 

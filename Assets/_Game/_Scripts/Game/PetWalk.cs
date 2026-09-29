@@ -21,12 +21,17 @@ public class PetWalk : MonoBehaviour
     const float PitchEase = 0.28f;
 
     Camera _cam;
-    float _livingX;
-    float _bathX;
-    float _focusX;
-    float _camFromX;
-    float _camGoalX;
+    Vector3[] _rooms = System.Array.Empty<Vector3>();
+    float[] _roomWidths = System.Array.Empty<float>();
+    string[] _roomIds = System.Array.Empty<string>();
+    int _roomIndex;
+    Vector3 _focus;
+    Vector3 _camFrom;
+    Vector3 _camGoal;
+    float _widthFrom;
+    float _widthGoal;
     float _camT;
+    float _viewWidth = RoomViewWidth;
     float _zoom = 4.25f;
     float _fitZoom = 4.25f;
     float _pitch = Pitch;
@@ -41,7 +46,20 @@ public class PetWalk : MonoBehaviour
     int _screenH;
     readonly List<RaycastResult> _hits = new List<RaycastResult>();
 
-    public static void Attach(GameObject pet, Camera cam, float livingX, float bathX)
+    public string CurrentRoomId
+    {
+        get
+        {
+            if (_roomIds == null || _roomIndex < 0 || _roomIndex >= _roomIds.Length)
+            {
+                return "";
+            }
+
+            return _roomIds[_roomIndex] ?? "";
+        }
+    }
+
+    public static void Attach(GameObject pet, Camera cam, Vector3[] rooms, float[] viewWidths, int startIndex, string[] roomIds)
     {
         var walk = pet.GetComponent<PetWalk>();
         if (walk == null)
@@ -49,7 +67,7 @@ public class PetWalk : MonoBehaviour
             walk = pet.AddComponent<PetWalk>();
         }
 
-        walk.Setup(cam, livingX, bathX);
+        walk.Setup(cam, rooms, viewWidths, startIndex, roomIds);
     }
 
     void OnEnable()
@@ -63,12 +81,27 @@ public class PetWalk : MonoBehaviour
         EnhancedTouchSupport.Disable();
     }
 
-    void Setup(Camera cam, float livingX, float bathX)
+    void Setup(Camera cam, Vector3[] rooms, float[] viewWidths, int startIndex, string[] roomIds)
     {
         _cam = cam;
-        _livingX = livingX;
-        _bathX = bathX;
-        _focusX = livingX;
+        _rooms = rooms != null && rooms.Length > 0 ? rooms : System.Array.Empty<Vector3>();
+        _roomIds = roomIds != null && roomIds.Length == _rooms.Length
+            ? roomIds
+            : new string[_rooms.Length];
+        _roomWidths = viewWidths != null && viewWidths.Length == _rooms.Length
+            ? viewWidths
+            : new float[_rooms.Length];
+        if (viewWidths == null || viewWidths.Length != _rooms.Length)
+        {
+            for (int i = 0; i < _roomWidths.Length; i++)
+            {
+                _roomWidths[i] = RoomViewWidth;
+            }
+        }
+
+        _roomIndex = _rooms.Length == 0 ? 0 : Mathf.Clamp(startIndex, 0, _rooms.Length - 1);
+        _viewWidth = _rooms.Length > 0 ? Mathf.Max(3f, _roomWidths[_roomIndex]) : RoomViewWidth;
+        _focus = _rooms.Length > 0 ? _rooms[_roomIndex] : new Vector3(0f, FocusY, 0f);
         _camMoving = false;
         FitZoom(true);
         ApplyCamera();
@@ -108,7 +141,7 @@ public class PetWalk : MonoBehaviour
         _screenW = Screen.width;
         _screenH = Mathf.Max(1, Screen.height);
         float aspect = Mathf.Max(0.35f, (float)_screenW / _screenH);
-        _fitZoom = RoomViewWidth / (2f * aspect);
+        _fitZoom = _viewWidth / (2f * aspect);
         _zoom = _fitZoom;
         _pitch = Pitch;
         _pitchVel = 0f;
@@ -164,12 +197,12 @@ public class PetWalk : MonoBehaviour
 
         if (keyboard.aKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame)
         {
-            GoTo(_bathX);
+            GoToIndex(_roomIndex - 1);
         }
 
         if (keyboard.dKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame)
         {
-            GoTo(_livingX);
+            GoToIndex(_roomIndex + 1);
         }
     }
 
@@ -238,7 +271,7 @@ public class PetWalk : MonoBehaviour
             return;
         }
 
-        GoTo(dx < 0f ? _bathX : _livingX);
+        GoToIndex(dx < 0f ? _roomIndex + 1 : _roomIndex - 1);
     }
 
     bool HitsControl(Vector2 screenPos)
@@ -265,15 +298,24 @@ public class PetWalk : MonoBehaviour
         return false;
     }
 
-    void GoTo(float x)
+    void GoToIndex(int index)
     {
-        if (Mathf.Abs(_focusX - x) < 0.05f && !_camMoving)
+        if (_rooms.Length == 0)
         {
             return;
         }
 
-        _camFromX = _focusX;
-        _camGoalX = x;
+        index = Mathf.Clamp(index, 0, _rooms.Length - 1);
+        if (index == _roomIndex && !_camMoving)
+        {
+            return;
+        }
+
+        _roomIndex = index;
+        _camFrom = _focus;
+        _camGoal = _rooms[index];
+        _widthFrom = _viewWidth;
+        _widthGoal = Mathf.Max(3f, _roomWidths[index]);
         _camT = 0f;
         _camMoving = true;
     }
@@ -287,7 +329,15 @@ public class PetWalk : MonoBehaviour
 
         _camT += Time.deltaTime / CamDuration;
         float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_camT));
-        _focusX = Mathf.Lerp(_camFromX, _camGoalX, u);
+        _focus = Vector3.Lerp(_camFrom, _camGoal, u);
+        _viewWidth = Mathf.Lerp(_widthFrom, _widthGoal, u);
+        float aspect = Mathf.Max(0.35f, (float)_screenW / Mathf.Max(1, _screenH));
+        float zoomScale = _fitZoom > 0.001f ? _zoom / _fitZoom : 1f;
+        _fitZoom = _viewWidth / (2f * aspect);
+        if (!_pinching)
+        {
+            _zoom = Mathf.Clamp(_fitZoom * zoomScale, _fitZoom * ZoomIn, _fitZoom * ZoomOut);
+        }
         if (_camT >= 1f)
         {
             _camMoving = false;
@@ -307,7 +357,7 @@ public class PetWalk : MonoBehaviour
         _pitch = Mathf.SmoothDamp(_pitch, targetPitch, ref _pitchVel, PitchEase);
         float rad = _pitch * Mathf.Deg2Rad;
         var lookDir = new Vector3(0f, -Mathf.Sin(rad), Mathf.Cos(rad));
-        var focus = new Vector3(_focusX, FocusY, 0f);
+        var focus = _focus;
         _cam.orthographicSize = _zoom;
         _cam.transform.SetPositionAndRotation(focus - lookDir * Distance, Quaternion.Euler(_pitch, 0f, 0f));
     }

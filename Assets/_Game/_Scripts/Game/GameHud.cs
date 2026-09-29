@@ -13,6 +13,7 @@ public class GameHud : MonoBehaviour
     [SerializeField] WorkMinigamesView _workGames;
     [SerializeField] LevelSelectWindow _levelSelectPrefab;
     [SerializeField] SnackShopView _snackShop;
+    [SerializeField] FurnishWindow _furnish;
 
     LevelSelectWindow _levelSelect;
 
@@ -128,12 +129,6 @@ public class GameHud : MonoBehaviour
         {
             var copy = Object.Instantiate(_snackButton.gameObject, bar);
             copy.name = "WardrobeButton";
-            var label = copy.GetComponentInChildren<TMP_Text>();
-            if (label != null)
-            {
-                label.text = "Шкаф";
-            }
-
             var image = copy.GetComponent<Image>();
             if (image != null)
             {
@@ -144,30 +139,86 @@ public class GameHud : MonoBehaviour
             button.onClick.RemoveAllListeners();
         }
 
+        var label = button.GetComponentInChildren<TMP_Text>();
+        if (label != null)
+        {
+            label.text = "Расстановка";
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 16f;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+        }
+
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(OnWardrobe);
     }
 
     void OnWardrobe()
     {
-        bool show = !IsWardrobeZoneOn();
-        PetRoom.ShowWardrobeZone(show);
-        var button = _snackButton.transform.parent.Find("WardrobeButton");
-        var image = button != null ? button.GetComponent<Image>() : null;
-        if (image != null)
+        EnsureFurnish();
+        if (_furnish == null || !_furnish.IsReady)
         {
-            image.color = show
-                ? new Color(0.42f, 0.72f, 0.38f, 1f)
-                : new Color(0.55f, 0.36f, 0.20f, 1f);
+            SetFeedback("Не вышло открыть расстановку");
+            return;
         }
 
-        SetFeedback(show ? "Нажми на площадку" : "");
+        if (_furnish.IsOpen)
+        {
+            _furnish.Close();
+            return;
+        }
+
+        _furnish.Open(CurrentRoomId());
     }
 
-    static bool IsWardrobeZoneOn()
+    static string CurrentRoomId()
     {
-        var zone = GameObject.Find("WardrobeZone");
-        return zone != null && zone.activeSelf;
+        var walk = FindFirstObjectByType<PetWalk>();
+        if (walk == null)
+        {
+            return "";
+        }
+
+        return walk.CurrentRoomId;
+    }
+
+    void EnsureFurnish()
+    {
+        Canvas canvas = FindHudCanvas();
+        if (_furnish == null)
+        {
+            _furnish = GetComponent<FurnishWindow>();
+        }
+
+        if (_furnish == null)
+        {
+            _furnish = gameObject.AddComponent<FurnishWindow>();
+        }
+
+        if (_furnish != null && !_furnish.IsReady && canvas != null)
+        {
+            FurnishOverlayFactory.Build(canvas.transform, _furnish);
+        }
+
+        if (_furnish != null)
+        {
+            _furnish.ItemChosen = OnFurnishChosen;
+        }
+    }
+
+    void OnFurnishChosen(string itemId)
+    {
+        if (_furnish != null && _furnish.IsOpen)
+        {
+            _furnish.Close();
+        }
+
+        if (!LivingFurnish.Place(itemId))
+        {
+            SetFeedback("Не вышло поставить");
+            return;
+        }
+
+        SetFeedback("Купили");
     }
 
     void OnSnack()
@@ -314,11 +365,35 @@ public class GameHud : MonoBehaviour
         if (_coins != null)
         {
             _coins.text = state.coins.ToString();
+            _coins.color = new Color(0.98f, 0.86f, 0.32f, 1f);
+            TintCaption(_coins, new Color(1f, 0.96f, 0.86f, 1f));
         }
 
         if (_hunger != null)
         {
             _hunger.text = state.hunger.ToString();
+            _hunger.color = new Color(1f, 0.64f, 0.38f, 1f);
+            TintCaption(_hunger, new Color(1f, 0.93f, 0.84f, 1f));
+        }
+    }
+
+    static void TintCaption(TMP_Text value, Color color)
+    {
+        if (value.transform.parent == null)
+        {
+            return;
+        }
+
+        var caption = value.transform.parent.Find("Caption");
+        if (caption == null)
+        {
+            return;
+        }
+
+        var label = caption.GetComponent<TMP_Text>();
+        if (label != null)
+        {
+            label.color = color;
         }
     }
 
