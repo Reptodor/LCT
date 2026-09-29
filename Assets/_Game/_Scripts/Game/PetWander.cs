@@ -23,8 +23,11 @@ public class PetWander : MonoBehaviour
 
     const float WanderSpeed = 0.75f;
     const float RushSpeed = 1.85f;
+    const string StandingParam = "is_standing";
+    const string WalkingParam = "is_walking";
 
     NavMeshAgent _agent;
+    Animator _animator;
     PetWalk _walk;
     float _wait;
     bool _moving;
@@ -133,15 +136,29 @@ public class PetWander : MonoBehaviour
     float FeetOffset()
     {
         var renderers = GetComponentsInChildren<Renderer>();
-        if (renderers.Length == 0)
+        bool any = false;
+        Bounds bounds = default;
+        for (int i = 0; i < renderers.Length; i++)
         {
-            return 0.5f;
+            if (renderers[i] == null || !renderers[i].enabled)
+            {
+                continue;
+            }
+
+            if (!any)
+            {
+                bounds = renderers[i].bounds;
+                any = true;
+            }
+            else
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
         }
 
-        Bounds bounds = renderers[0].bounds;
-        for (int i = 1; i < renderers.Length; i++)
+        if (!any)
         {
-            bounds.Encapsulate(renderers[i].bounds);
+            return 0.5f;
         }
 
         float drop = transform.position.y - bounds.min.y;
@@ -219,14 +236,75 @@ public class PetWander : MonoBehaviour
 
         if (TryDestination(out Vector3 next))
         {
-        _agent.SetDestination(next);
-        _agent.speed = WanderSpeed;
-        _moving = true;
+            _agent.SetDestination(next);
+            _agent.speed = WanderSpeed;
+            _moving = true;
         }
         else
         {
             _wait = 0.6f;
         }
+    }
+
+    void LateUpdate()
+    {
+        DriveAnimation();
+    }
+
+    public void RefreshBody()
+    {
+        if (_agent == null)
+        {
+            EnsureAgent();
+        }
+
+        if (_agent == null)
+        {
+            return;
+        }
+
+        _agent.baseOffset = FeetOffset();
+        SnapToMesh();
+    }
+
+    void DriveAnimation()
+    {
+        if (_animator == null)
+        {
+            _animator = GetComponentInChildren<Animator>();
+            if (_animator == null)
+            {
+                return;
+            }
+        }
+
+        bool walking = IsWalking();
+        bool standing = walking || _trip == 2 || _trip == 4;
+        _animator.SetBool(StandingParam, standing);
+        _animator.SetBool(WalkingParam, walking);
+        float pace = 1f;
+        if (walking && _agent != null)
+        {
+            pace = Mathf.Clamp(_agent.velocity.magnitude / WanderSpeed, 0.85f, 1.7f);
+        }
+
+        _animator.speed = pace;
+    }
+
+    bool IsWalking()
+    {
+        if (_agent == null || !_moving || _agent.speed <= 0.05f)
+        {
+            return false;
+        }
+
+        if (_agent.pathPending)
+        {
+            return true;
+        }
+
+        return _agent.velocity.sqrMagnitude > 0.008f
+            || (_agent.hasPath && _agent.remainingDistance > _agent.stoppingDistance + 0.15f);
     }
 
     bool TryDestination(out Vector3 destination)

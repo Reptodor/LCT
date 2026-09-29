@@ -85,6 +85,25 @@ public static class PetLook
         }
     }
 
+    public static void PrepareLocomotion(GameObject cat)
+    {
+        if (cat == null)
+        {
+            return;
+        }
+
+        Animator[] animators = cat.GetComponentsInChildren<Animator>(true);
+        for (int i = 0; i < animators.Length; i++)
+        {
+            Animator animator = animators[i];
+            animator.enabled = true;
+            animator.applyRootMotion = false;
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            animator.SetBool("is_standing", false);
+            animator.SetBool("is_walking", false);
+        }
+    }
+
     public static void SeatOnFloor(GameObject cat, float floorY)
     {
         if (cat == null || !TryBounds(cat, IncludeBody, out Bounds bounds))

@@ -17,8 +17,8 @@ MonoBehaviour:
     _title: "\u041A\u0443\u0445\u043D\u044F"
     _target: 50
     _deposit: 25
-  - _id: GameRoom
-    _title: "\u0418\u0433\u0440\u043E\u0432\u0430\u044F"
+  - _id: Bedroom
+    _title: "\u0421\u043F\u0430\u043B\u044C\u043D\u044F"
     _target: 250
     _deposit: 20
   - _id: Bath

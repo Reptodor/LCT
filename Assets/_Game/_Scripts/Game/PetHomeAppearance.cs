@@ -40,6 +40,12 @@ public class PetHomeAppearanceRunner : MonoBehaviour
 
     IEnumerator Place()
     {
+        GameObject mover = GameObject.Find("Monetok");
+        if (mover != null)
+        {
+            HideCapsule(mover);
+        }
+
         float waited = 0f;
         while (waited < 2f && GameObject.Find("House") == null && GameObject.Find("Room") == null)
         {
@@ -59,6 +65,7 @@ public class PetHomeAppearanceRunner : MonoBehaviour
         if (catalog == null || catalog.Cat == null)
         {
             Debug.LogError("[Finashka] Не удалось показать питомца: нет модели в каталоге.");
+            ShowCapsule(mover);
             Destroy(gameObject);
             yield break;
         }
@@ -69,6 +76,13 @@ public class PetHomeAppearanceRunner : MonoBehaviour
         }
 
         PetLook.Read(GameSession.State, out int color, out int hat);
+        if (mover != null)
+        {
+            yield return DressMover(mover, catalog.Cat, color, hat);
+            Destroy(gameObject);
+            yield break;
+        }
+
         Vector3 spawn = SpawnPoint();
         float floor = FloorY(spawn);
         GameObject cat = Instantiate(catalog.Cat);
@@ -89,6 +103,67 @@ public class PetHomeAppearanceRunner : MonoBehaviour
         PetLook.Apply(cat, color, hat);
         PetLook.SeatOnFloor(cat, floor);
         Destroy(gameObject);
+    }
+
+    IEnumerator DressMover(GameObject mover, GameObject prefab, int color, int hat)
+    {
+        HideCapsule(mover);
+        GameObject cat = Instantiate(prefab, mover.transform);
+        cat.name = PetLook.HomeObjectName;
+        cat.transform.localPosition = Vector3.zero;
+        cat.transform.localRotation = Quaternion.identity;
+        cat.transform.localScale = Vector3.one;
+        PetLook.PrepareLocomotion(cat);
+        yield return null;
+        PetLook.ScaleToHeight(cat, TargetHeight);
+        cat.transform.localRotation = Quaternion.identity;
+        PetLook.Apply(cat, color, hat);
+        PetLook.SeatOnFloor(cat, mover.transform.position.y);
+        var wander = mover.GetComponent<PetWander>();
+        if (wander != null)
+        {
+            wander.RefreshBody();
+        }
+    }
+
+    static void HideCapsule(GameObject mover)
+    {
+        if (mover == null)
+        {
+            return;
+        }
+
+        MeshRenderer renderer = mover.GetComponent<MeshRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = false;
+        }
+
+        CapsuleCollider collider = mover.GetComponent<CapsuleCollider>();
+        if (collider != null)
+        {
+            collider.enabled = false;
+        }
+    }
+
+    static void ShowCapsule(GameObject mover)
+    {
+        if (mover == null)
+        {
+            return;
+        }
+
+        MeshRenderer renderer = mover.GetComponent<MeshRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = true;
+        }
+
+        CapsuleCollider collider = mover.GetComponent<CapsuleCollider>();
+        if (collider != null)
+        {
+            collider.enabled = true;
+        }
     }
 
     static Vector3 SpawnPoint()
