@@ -12,10 +12,12 @@ public class GameHud : MonoBehaviour
     [SerializeField] Button _snackButton;
     [SerializeField] WorkMinigamesView _workGames;
     [SerializeField] LevelSelectWindow _levelSelectPrefab;
+    [SerializeField] SavingsWindow _savingsPrefab;
     [SerializeField] SnackShopView _snackShop;
     [SerializeField] FurnishWindow _furnish;
 
     LevelSelectWindow _levelSelect;
+    SavingsWindow _savings;
 
     void Awake()
     {
@@ -39,6 +41,7 @@ public class GameHud : MonoBehaviour
         EnsureWorkGames();
         EnsureSnackShop();
         EnsureWardrobeButton();
+        EnsureSavingsButton();
         HideRoomSwitch();
         Refresh();
     }
@@ -150,6 +153,94 @@ public class GameHud : MonoBehaviour
 
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(OnWardrobe);
+    }
+
+    void EnsureSavingsButton()
+    {
+        if (_snackButton == null)
+        {
+            return;
+        }
+
+        Transform bar = _snackButton.transform.parent;
+        Transform existing = bar.Find("SavingsButton");
+        Button button;
+        if (existing != null)
+        {
+            button = existing.GetComponent<Button>();
+        }
+        else
+        {
+            GameObject copy = Object.Instantiate(_snackButton.gameObject, bar);
+            copy.name = "SavingsButton";
+            Image image = copy.GetComponent<Image>();
+            if (image != null)
+            {
+                image.color = new Color(0.16f, 0.42f, 0.30f, 1f);
+            }
+
+            button = copy.GetComponent<Button>();
+            button.onClick.RemoveAllListeners();
+        }
+
+        TMP_Text label = button.GetComponentInChildren<TMP_Text>();
+        if (label != null)
+        {
+            label.text = "Копилка";
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 16f;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+        }
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(OnSavings);
+    }
+
+    void OnSavings()
+    {
+        SavingsWindow window = EnsureSavings();
+        if (window == null)
+        {
+            SetFeedback("Не вышло открыть копилку");
+            return;
+        }
+
+        window.BalanceChanged -= OnSavingsChanged;
+        window.BalanceChanged += OnSavingsChanged;
+        window.Open();
+    }
+
+    void OnSavingsChanged()
+    {
+        Refresh();
+    }
+
+    SavingsWindow EnsureSavings()
+    {
+        if (_savings != null)
+        {
+            return _savings;
+        }
+
+        _savings = FindFirstObjectByType<SavingsWindow>(FindObjectsInactive.Include);
+        if (_savings != null)
+        {
+            return _savings;
+        }
+
+        if (_savingsPrefab == null)
+        {
+            return null;
+        }
+
+        Canvas canvas = FindHudCanvas();
+        if (canvas == null)
+        {
+            return null;
+        }
+
+        _savings = Instantiate(_savingsPrefab, canvas.transform);
+        return _savings;
     }
 
     void OnWardrobe()

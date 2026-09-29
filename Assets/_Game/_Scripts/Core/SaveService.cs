@@ -44,6 +44,16 @@ public sealed class SaveService
                 state.levelProgress = new LevelProgress[0];
             }
 
+            if (state.savings == null)
+            {
+                state.savings = new SavingsPot[0];
+            }
+
+            if (state.savingsGoalId == null)
+            {
+                state.savingsGoalId = "";
+            }
+
             return state;
         }
         catch (Exception ex)

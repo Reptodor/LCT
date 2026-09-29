@@ -3845,6 +3845,7 @@ MonoBehaviour:
   _snackButton: {fileID: 1709341113}
   _workGames: {fileID: 585345999}
   _levelSelectPrefab: {fileID: 810004, guid: d4413f5061728394d0e1f20314253647, type: 3}
+  _savingsPrefab: {fileID: 910004, guid: e77a3c4d5e6f708192a3b4c5d6e7f809, type: 3}
   _snackShop: {fileID: 0}
   _furnish: {fileID: 0}
 --- !u!4 &585345998

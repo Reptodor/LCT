@@ -15,6 +15,8 @@ public class GameState
     public int hunger = 80;
     public string lastSaveUtc = "";
     public LevelProgress[] levelProgress = new LevelProgress[0];
+    public string savingsGoalId = "";
+    public SavingsPot[] savings = new SavingsPot[0];
 
     public static GameState CreateDefault()
     {
@@ -24,7 +26,16 @@ public class GameState
             coins = 100,
             hunger = 80,
             lastSaveUtc = "",
-            levelProgress = new LevelProgress[0]
+            levelProgress = new LevelProgress[0],
+            savingsGoalId = "",
+            savings = new SavingsPot[0]
         };
     }
+}
+
+[Serializable]
+public class SavingsPot
+{
+    public string id = "";
+    public int saved;
 }
