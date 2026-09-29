@@ -76,6 +76,16 @@ public sealed class SavingsWindow : MonoBehaviour
         }
     }
 
+    public void SyncBalance()
+    {
+        if (!IsOpen)
+        {
+            return;
+        }
+
+        Refresh(false);
+    }
+
     public void Open()
     {
         if (_closing)

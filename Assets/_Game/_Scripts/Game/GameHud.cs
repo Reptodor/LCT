@@ -45,6 +45,7 @@ public class GameHud : MonoBehaviour
         EnsureWardrobeButton();
         EnsureSavingsButton();
         EnsureSettingsButton();
+        EnsureDebugCoinsButton();
         HideRoomSwitch();
         Refresh();
         OpenSavingsIfNeeded();
@@ -269,6 +270,93 @@ public class GameHud : MonoBehaviour
         button.onClick.AddListener(OnSettings);
     }
 
+    void EnsureDebugCoinsButton()
+    {
+#if !UNITY_EDITOR
+        return;
+#else
+        const int grant = 100;
+        Canvas canvas = FindHudCanvas();
+        if (canvas == null)
+        {
+            return;
+        }
+
+        Transform existing = canvas.transform.Find("DebugCoinsButton");
+        Button button;
+        if (existing != null)
+        {
+            button = existing.GetComponent<Button>();
+        }
+        else
+        {
+            var go = new GameObject("DebugCoinsButton", typeof(RectTransform), typeof(Canvas), typeof(Image), typeof(Button));
+            go.transform.SetParent(canvas.transform, false);
+            var overlay = go.GetComponent<Canvas>();
+            overlay.overrideSorting = true;
+            overlay.sortingOrder = 80;
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = new Vector2(16f, -16f);
+            rect.sizeDelta = new Vector2(220f, 64f);
+
+            var image = go.GetComponent<Image>();
+            image.color = new Color(0.45f, 0.28f, 0.62f, 1f);
+            button = go.GetComponent<Button>();
+            button.targetGraphic = image;
+
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            labelGo.transform.SetParent(go.transform, false);
+            var labelRect = labelGo.GetComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(8f, 4f);
+            labelRect.offsetMax = new Vector2(-8f, -4f);
+            var label = labelGo.AddComponent<TextMeshProUGUI>();
+            label.text = "+" + grant + " монет";
+            label.alignment = TextAlignmentOptions.Center;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 16f;
+            label.fontSizeMax = 28f;
+            label.color = new Color(1f, 0.96f, 0.88f, 1f);
+            label.raycastTarget = false;
+            if (_petName != null)
+            {
+                label.font = _petName.font;
+            }
+        }
+
+        if (button == null)
+        {
+            return;
+        }
+
+        button.transform.SetAsLastSibling();
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() => OnDebugCoins(grant));
+#endif
+    }
+
+    void OnDebugCoins(int amount)
+    {
+#if UNITY_EDITOR
+        if (!GameSession.IsReady || !PetActions.TryEarn(GameSession.State, amount))
+        {
+            return;
+        }
+
+        GameSession.Persist();
+        SetFeedback("Тест: +" + amount + " монет");
+        Refresh();
+        if (_savings != null)
+        {
+            _savings.SyncBalance();
+        }
+#endif
+    }
+
     void OnSettings()
     {
         SettingsWindow window = EnsureSettings();
@@ -387,6 +475,18 @@ public class GameHud : MonoBehaviour
 
     void OnWardrobe()
     {
+        string roomId = CurrentRoomId();
+        if (!RoomUnlocks.IsOpen(roomId))
+        {
+            if (_furnish != null && _furnish.IsOpen)
+            {
+                _furnish.Close();
+            }
+
+            SetFeedback(RoomUnlocks.FurnishBlockedText(roomId));
+            return;
+        }
+
         EnsureFurnish();
         if (_furnish == null || !_furnish.IsReady)
         {
