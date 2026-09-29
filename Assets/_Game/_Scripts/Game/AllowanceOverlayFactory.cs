@@ -96,8 +96,8 @@ public static class AllowanceOverlayFactory
             image = go.AddComponent<Image>();
         }
 
-        image.sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
-        image.type = Image.Type.Sliced;
+        image.sprite = null;
+        image.type = Image.Type.Simple;
         image.color = color;
         image.raycastTarget = raycast;
     }

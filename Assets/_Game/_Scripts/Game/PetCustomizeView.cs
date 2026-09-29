@@ -282,8 +282,8 @@ public class PetCustomizeView : MonoBehaviour
             font = TMP_Settings.defaultFontAsset;
         }
 
-        Sprite sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
-        Sprite knob = Resources.GetBuiltinResource<Sprite>("UI/Skin/Knob.psd");
+        Sprite sprite = null;
+        Sprite knob = null;
 
         var canvasGo = new GameObject("CustomizeCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         var canvas = canvasGo.GetComponent<Canvas>();
@@ -582,7 +582,7 @@ public class PetCustomizeView : MonoBehaviour
     {
         var image = go.GetComponent<Image>();
         image.sprite = sprite;
-        image.type = Image.Type.Sliced;
+        image.type = sprite == null ? Image.Type.Simple : Image.Type.Sliced;
         image.color = color;
         image.raycastTarget = raycast;
     }
