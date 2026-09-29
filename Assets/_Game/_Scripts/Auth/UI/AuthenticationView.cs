@@ -27,7 +27,6 @@ public class AuthenticationView : MonoBehaviour
     private IAuthService _auth;
     private TMP_Text _status;
 
-    private const string GameSceneName = "Game";
 
     private void Awake()
     {
@@ -104,7 +103,7 @@ public class AuthenticationView : MonoBehaviour
 
         _auth.SaveDeviceId(DeviceIdentifier.Get());
         Debug.Log("[Auth] Регистрация завершена, можно продолжать игру");
-        EnterGame();
+        Enter(true);
     }
 
     private void OnLoginClicked()
@@ -118,10 +117,10 @@ public class AuthenticationView : MonoBehaviour
         }
 
         Debug.Log("[Auth] Вход выполнен, можно продолжать игру");
-        EnterGame();
+        Enter(false);
     }
 
-    private void EnterGame()
+    private void Enter(bool createPet)
     {
         string profileId = _auth.ActiveProfileId;
         if (!string.IsNullOrEmpty(profileId))
@@ -129,7 +128,8 @@ public class AuthenticationView : MonoBehaviour
             GameSession.BindProfile(Application.persistentDataPath, profileId, _auth.LegacySaveOwner);
         }
 
-        SceneManager.LoadScene(GameSceneName);
+        string scene = createPet ? BootController.PetCustomizeSceneName : BootController.GameSceneName;
+        SceneManager.LoadScene(scene);
     }
 
     private void ClearStatus()

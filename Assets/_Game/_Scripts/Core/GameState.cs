@@ -11,6 +11,9 @@ public class LevelProgress
 public class GameState
 {
     public string petName = AppInfo.Title;
+    public int petColor;
+    public int petHat = 3;
+    public bool petLookSet;
     public int coins = 100;
     public int hunger = 80;
     public string lastSaveUtc = "";
@@ -23,6 +26,9 @@ public class GameState
         return new GameState
         {
             petName = AppInfo.Title,
+            petColor = 0,
+            petHat = 3,
+            petLookSet = false,
             coins = 100,
             hunger = 80,
             lastSaveUtc = "",

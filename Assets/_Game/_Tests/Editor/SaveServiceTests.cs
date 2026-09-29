@@ -132,4 +132,23 @@ public class SaveServiceTests
         GameSession.BindProfile(_dir, "b@mail.com");
         Assert.AreEqual(40, GameSession.State.coins);
     }
+
+    [Test]
+    public void SaveThenLoad_RestoresPetLook()
+    {
+        var saves = new SaveService(_dir);
+        var state = GameState.CreateDefault();
+        state.petName = "Барсик";
+        state.petColor = 2;
+        state.petHat = 1;
+        state.petLookSet = true;
+        saves.Save(state);
+
+        GameState loaded = new SaveService(_dir).LoadOrCreateDefault();
+
+        Assert.AreEqual("Барсик", loaded.petName);
+        Assert.AreEqual(2, loaded.petColor);
+        Assert.AreEqual(1, loaded.petHat);
+        Assert.IsTrue(loaded.petLookSet);
+    }
 }

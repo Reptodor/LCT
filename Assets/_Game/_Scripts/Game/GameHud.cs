@@ -318,17 +318,7 @@ public class GameHud : MonoBehaviour
     void OnProfileReset()
     {
         GameSession.ResetProgress();
-        Refresh();
-        if (_savings != null && _savings.gameObject.activeInHierarchy)
-        {
-            _savings.Open();
-        }
-        else
-        {
-            OpenSavingsIfNeeded();
-        }
-
-        SetFeedback("Прогресс сброшен");
+        SceneManager.LoadScene(BootController.PetCustomizeSceneName);
     }
 
     void OnLogout()
@@ -602,7 +592,7 @@ public class GameHud : MonoBehaviour
 
         if (_petName != null)
         {
-            _petName.text = AppInfo.Title;
+            _petName.text = string.IsNullOrWhiteSpace(state.petName) ? AppInfo.Title : state.petName;
         }
 
         if (_coins != null)

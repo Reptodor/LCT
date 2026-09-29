@@ -5,6 +5,8 @@ using UnityEngine.SceneManagement;
 public class BootController : MonoBehaviour
 {
     public const string ProfileSetupSceneName = "ProfileSetup";
+    public const string PetCustomizeSceneName = "PetCustomize";
+    public const string GameSceneName = "Game";
 
     [SerializeField] LoadingView _loading;
 
