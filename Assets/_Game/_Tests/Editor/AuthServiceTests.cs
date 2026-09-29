@@ -44,6 +44,26 @@ public class AuthServiceTests
     }
 
     [Test]
+    public void ActiveProfile_SurvivesRestartUntilLogout()
+    {
+        string path = Path.Combine(_dir, "accounts.json");
+        var auth = new AuthService(path);
+        Assert.IsTrue(auth.RegisterUser("a@mail.com", "secret"));
+        auth.Logout();
+        Assert.IsTrue(auth.LoginUser("a@mail.com", "secret"));
+
+        var restarted = new AuthService(path);
+        Assert.AreEqual("a@mail.com", restarted.ActiveProfileId);
+        Assert.IsNotNull(restarted.GetSavedCredentials());
+        Assert.AreEqual("a@mail.com", restarted.GetSavedCredentials().Email);
+
+        restarted.Logout();
+        var signedOut = new AuthService(path);
+        Assert.AreEqual(string.Empty, signedOut.ActiveProfileId);
+        Assert.IsNull(signedOut.GetSavedCredentials());
+    }
+
+    [Test]
     public void LegacyAccount_IsImportedAndKeepsTheOldSave()
     {
         string path = Path.Combine(_dir, "accounts.json");

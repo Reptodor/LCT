@@ -37,15 +37,12 @@ public class AuthenticationView : MonoBehaviour
         _regSubmitButton?.onClick.AddListener(OnRegisterClicked);
         _loginSubmitButton?.onClick.AddListener(OnLoginClicked);
 
-        // Начальный экран
-        ShowChoice();
-
-        // Проверка устройства — только лог в дебаге, UI не пропускаем
-        if (_auth.IsDeviceRegistered())
+        if (TryContinueActiveSession())
         {
-            // Требование: пока ничего не пропускать, только писать в Debug
-            Debug.Log("[Auth] Игрок уже зарегистрирован — UI не пропускаем по условиям задачи");
+            return;
         }
+
+        ShowChoice();
     }
 
     public void SetupAuthService(IAuthService service)
@@ -120,6 +117,18 @@ public class AuthenticationView : MonoBehaviour
         Enter(false);
     }
 
+    private bool TryContinueActiveSession()
+    {
+        if (_auth.GetSavedCredentials() == null)
+        {
+            return false;
+        }
+
+        Debug.Log("[Auth] Сессия сохранена, входим без пароля: " + _auth.ActiveProfileId);
+        Enter(false);
+        return true;
+    }
+
     private void Enter(bool createPet)
     {
         string profileId = _auth.ActiveProfileId;
@@ -128,7 +137,8 @@ public class AuthenticationView : MonoBehaviour
             GameSession.BindProfile(Application.persistentDataPath, profileId, _auth.LegacySaveOwner);
         }
 
-        string scene = createPet ? BootController.PetCustomizeSceneName : BootController.GameSceneName;
+        bool needsPet = createPet || !GameSession.IsReady || !GameSession.State.petLookSet;
+        string scene = needsPet ? BootController.PetCustomizeSceneName : BootController.GameSceneName;
         SceneManager.LoadScene(scene);
     }
 

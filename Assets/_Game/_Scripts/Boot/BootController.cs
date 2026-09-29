@@ -32,15 +32,33 @@ public class BootController : MonoBehaviour
         _loading?.SetStatus("Почти готово…");
         yield return Fill(0.85f, 0.4f);
 
-        if (!CanLoadProfileSetupScene())
+        string nextScene = ResolveLaunchScene();
+        if (!IsSceneInBuild(nextScene))
         {
-            _loading?.ShowError("Сцена Game не в Build Settings");
+            _loading?.ShowError("Сцена " + nextScene + " не в Build Settings");
             yield break;
         }
 
-        _loading?.SetStatus("Открываем дом…");
+        _loading?.SetStatus(nextScene == ProfileSetupSceneName ? "Открываем вход…" : "Открываем дом…");
         yield return Fill(1f, 0.35f);
-        SceneManager.LoadScene(ProfileSetupSceneName);
+        SceneManager.LoadScene(nextScene);
+    }
+
+    static string ResolveLaunchScene()
+    {
+        var auth = new AuthService();
+        if (auth.GetSavedCredentials() == null)
+        {
+            return ProfileSetupSceneName;
+        }
+
+        GameSession.BindProfile(Application.persistentDataPath, auth.ActiveProfileId, auth.LegacySaveOwner);
+        if (GameSession.IsReady && GameSession.State.petLookSet)
+        {
+            return GameSceneName;
+        }
+
+        return PetCustomizeSceneName;
     }
 
     IEnumerator Fill(float target, float duration)
@@ -53,7 +71,7 @@ public class BootController : MonoBehaviour
         yield return _loading.FillTo(target, duration);
     }
 
-    static bool CanLoadProfileSetupScene()
+    static bool IsSceneInBuild(string sceneName)
     {
         int count = SceneManager.sceneCountInBuildSettings;
         for (int i = 0; i < count; i++)
@@ -65,7 +83,7 @@ public class BootController : MonoBehaviour
             }
 
             string name = System.IO.Path.GetFileNameWithoutExtension(path);
-            if (name == ProfileSetupSceneName)
+            if (name == sceneName)
             {
                 return true;
             }
