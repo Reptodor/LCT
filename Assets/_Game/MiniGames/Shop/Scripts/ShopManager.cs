@@ -203,12 +203,7 @@ namespace LCT.MiniGames.Shop
 
         static string ProgressKey()
         {
-            if (string.IsNullOrEmpty(GameSession.ProfileId))
-            {
-                return "TotalSaved";
-            }
-
-            return "TotalSaved_" + SaveService.ToFileKey(GameSession.ProfileId);
+            return GameSession.ShopSavingsKey();
         }
 
         // ===== ЗАПУСК МАГАЗИНА =====

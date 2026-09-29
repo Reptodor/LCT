@@ -19,6 +19,7 @@ public class GameHud : MonoBehaviour
 
     LevelSelectWindow _levelSelect;
     SavingsWindow _savings;
+    SettingsWindow _settings;
 
     void Awake()
     {
@@ -43,7 +44,7 @@ public class GameHud : MonoBehaviour
         EnsureSnackShop();
         EnsureWardrobeButton();
         EnsureSavingsButton();
-        EnsureLogoutButton();
+        EnsureSettingsButton();
         HideRoomSwitch();
         Refresh();
         OpenSavingsIfNeeded();
@@ -199,7 +200,7 @@ public class GameHud : MonoBehaviour
         button.onClick.AddListener(OnSavings);
     }
 
-    void EnsureLogoutButton()
+    void EnsureSettingsButton()
     {
         GameObject top = GameObject.Find("TopBar");
         Transform parent = top != null ? top.transform : FindHudCanvas() != null ? FindHudCanvas().transform : null;
@@ -208,7 +209,13 @@ public class GameHud : MonoBehaviour
             return;
         }
 
-        Transform existing = parent.Find("LogoutButton");
+        Transform leftover = parent.Find("LogoutButton");
+        if (leftover != null)
+        {
+            Destroy(leftover.gameObject);
+        }
+
+        Transform existing = parent.Find("SettingsButton");
         Button button;
         if (existing != null)
         {
@@ -216,18 +223,18 @@ public class GameHud : MonoBehaviour
         }
         else
         {
-            var go = new GameObject("LogoutButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+            var go = new GameObject("SettingsButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
             go.transform.SetParent(parent, false);
             var rect = go.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(1f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(1f, 1f);
             rect.anchoredPosition = new Vector2(-8f, -8f);
-            rect.sizeDelta = new Vector2(168f, 64f);
+            rect.sizeDelta = new Vector2(196f, 64f);
             go.GetComponent<LayoutElement>().ignoreLayout = true;
 
             var image = go.GetComponent<Image>();
-            image.color = new Color(0.45f, 0.18f, 0.16f, 1f);
+            image.color = new Color(0.18f, 0.32f, 0.22f, 1f);
             button = go.GetComponent<Button>();
             button.targetGraphic = image;
 
@@ -236,12 +243,14 @@ public class GameHud : MonoBehaviour
             var labelRect = labelGo.GetComponent<RectTransform>();
             labelRect.anchorMin = Vector2.zero;
             labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
+            labelRect.offsetMin = new Vector2(8f, 4f);
+            labelRect.offsetMax = new Vector2(-8f, -4f);
             var label = labelGo.AddComponent<TextMeshProUGUI>();
-            label.text = "Выйти";
+            label.text = "Настройки";
             label.alignment = TextAlignmentOptions.Center;
-            label.fontSize = 28f;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 16f;
+            label.fontSizeMax = 28f;
             label.color = new Color(1f, 0.96f, 0.88f, 1f);
             label.raycastTarget = false;
             if (_petName != null)
@@ -257,7 +266,69 @@ public class GameHud : MonoBehaviour
 
         button.transform.SetAsLastSibling();
         button.onClick.RemoveAllListeners();
-        button.onClick.AddListener(OnLogout);
+        button.onClick.AddListener(OnSettings);
+    }
+
+    void OnSettings()
+    {
+        SettingsWindow window = EnsureSettings();
+        if (window == null || !window.IsReady)
+        {
+            SetFeedback("Не вышло открыть настройки");
+            return;
+        }
+
+        if (window.IsOpen)
+        {
+            window.Close();
+            return;
+        }
+
+        window.Open();
+    }
+
+    SettingsWindow EnsureSettings()
+    {
+        if (_settings == null)
+        {
+            _settings = GetComponent<SettingsWindow>();
+        }
+
+        if (_settings == null)
+        {
+            _settings = gameObject.AddComponent<SettingsWindow>();
+        }
+
+        Canvas canvas = FindHudCanvas();
+        if (_settings != null && !_settings.IsReady && canvas != null)
+        {
+            TMP_FontAsset font = _petName != null ? _petName.font : null;
+            SettingsOverlayFactory.Build(canvas.transform, _settings, font);
+        }
+
+        if (_settings != null)
+        {
+            _settings.ResetDone = OnProfileReset;
+            _settings.LogoutRequested = OnLogout;
+        }
+
+        return _settings;
+    }
+
+    void OnProfileReset()
+    {
+        GameSession.ResetProgress();
+        Refresh();
+        if (_savings != null && _savings.gameObject.activeInHierarchy)
+        {
+            _savings.Open();
+        }
+        else
+        {
+            OpenSavingsIfNeeded();
+        }
+
+        SetFeedback("Прогресс сброшен");
     }
 
     void OnLogout()

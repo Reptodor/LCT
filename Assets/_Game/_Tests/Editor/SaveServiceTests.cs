@@ -17,6 +17,8 @@ public class SaveServiceTests
     public void TearDown()
     {
         GameSession.ResetForTests();
+        PlayerPrefs.DeleteKey("TotalSaved_" + SaveService.ToFileKey("a@mail.com"));
+        PlayerPrefs.DeleteKey("TotalSaved_" + SaveService.ToFileKey("b@mail.com"));
         if (Directory.Exists(_dir))
         {
             Directory.Delete(_dir, true);
@@ -106,5 +108,28 @@ public class SaveServiceTests
 
         GameSession.BindProfile(_dir, "new@mail.com", "old@mail.com");
         Assert.AreEqual(100, GameSession.State.coins);
+    }
+
+    [Test]
+    public void ResetProgress_RestoresThisProfileAndLeavesTheOther()
+    {
+        string shopKey = "TotalSaved_" + SaveService.ToFileKey("a@mail.com");
+        GameSession.BindProfile(_dir, "a@mail.com");
+        GameSession.State.coins = 15;
+        PlayerPrefs.SetInt(shopKey, 9);
+
+        GameSession.BindProfile(_dir, "b@mail.com");
+        GameSession.State.coins = 40;
+
+        GameSession.BindProfile(_dir, "a@mail.com");
+        GameSession.ResetProgress();
+
+        Assert.AreEqual(100, GameSession.State.coins);
+        Assert.AreEqual(80, GameSession.State.hunger);
+        Assert.AreEqual("a@mail.com", GameSession.ProfileId);
+        Assert.IsFalse(PlayerPrefs.HasKey(shopKey));
+
+        GameSession.BindProfile(_dir, "b@mail.com");
+        Assert.AreEqual(40, GameSession.State.coins);
     }
 }

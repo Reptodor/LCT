@@ -23,6 +23,7 @@ namespace LCT.MiniGames.Shop
 
         private AudioSource audioSource;
         private AudioSource musicSource;
+        bool _pushedExternalMusic;
 
         void Awake()
         {
@@ -40,17 +41,84 @@ namespace LCT.MiniGames.Shop
             musicSource.playOnAwake = false;
         }
 
+        void OnEnable()
+        {
+            GameAudio.Changed += ApplyMix;
+            if (Instance == this && backgroundMusic != null && !_pushedExternalMusic)
+            {
+                _pushedExternalMusic = true;
+                HouseMusic.PushExternal();
+            }
+
+            ApplyMix();
+        }
+
+        void OnDisable()
+        {
+            GameAudio.Changed -= ApplyMix;
+        }
+
         void Start()
         {
+            if (Instance != this)
+            {
+                return;
+            }
+
             PlayBackgroundMusic();
+        }
+
+        void OnDestroy()
+        {
+            if (_pushedExternalMusic)
+            {
+                HouseMusic.PopExternal();
+            }
         }
 
         public void PlayBackgroundMusic()
         {
-            if (backgroundMusic != null && musicSource != null)
+            if (!GameAudio.MusicOn || backgroundMusic == null || musicSource == null)
             {
-                musicSource.clip = backgroundMusic;
-                musicSource.Play();
+                return;
+            }
+
+            musicSource.mute = false;
+            musicSource.clip = backgroundMusic;
+            musicSource.Play();
+        }
+
+        void ApplyMix()
+        {
+            if (audioSource != null)
+            {
+                audioSource.mute = !GameAudio.SoundOn;
+            }
+
+            if (musicSource == null)
+            {
+                return;
+            }
+
+            musicSource.mute = !GameAudio.MusicOn;
+            if (!GameAudio.MusicOn)
+            {
+                musicSource.Pause();
+                return;
+            }
+
+            if (backgroundMusic == null)
+            {
+                return;
+            }
+
+            if (musicSource.clip != backgroundMusic)
+            {
+                PlayBackgroundMusic();
+            }
+            else if (!musicSource.isPlaying)
+            {
+                musicSource.UnPause();
             }
         }
 

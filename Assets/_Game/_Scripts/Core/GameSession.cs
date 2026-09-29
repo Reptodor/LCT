@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public static class GameSession
 {
     public static GameState State { get; private set; }
@@ -10,6 +12,7 @@ public static class GameSession
         Saves = saves;
         State = saves.LoadOrCreateDefault();
         ProfileId = null;
+        GameAudio.Reload();
     }
 
     public static void BindProfile(string directory, string profileId, string legacyOwnerId = null)
@@ -25,6 +28,7 @@ public static class GameSession
         ProfileId = normalized;
         Saves = SaveService.ForProfile(directory, normalized);
         State = Saves.LoadOrCreateDefault();
+        GameAudio.Reload();
     }
 
     public static void Persist()
@@ -37,12 +41,37 @@ public static class GameSession
         Saves.Save(State);
     }
 
+    public static void ResetProgress()
+    {
+        if (Saves == null)
+        {
+            return;
+        }
+
+        string shopKey = ShopSavingsKey();
+        State = GameState.CreateDefault();
+        Persist();
+        PlayerPrefs.DeleteKey(shopKey);
+        PlayerPrefs.Save();
+    }
+
+    public static string ShopSavingsKey()
+    {
+        if (string.IsNullOrEmpty(ProfileId))
+        {
+            return "TotalSaved";
+        }
+
+        return "TotalSaved_" + SaveService.ToFileKey(ProfileId);
+    }
+
     public static void Unload()
     {
         Persist();
         State = null;
         Saves = null;
         ProfileId = null;
+        GameAudio.Reload();
     }
 
     public static void ResetForTests()
