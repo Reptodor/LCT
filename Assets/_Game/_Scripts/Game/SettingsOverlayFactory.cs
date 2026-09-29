@@ -46,7 +46,7 @@ public static class SettingsOverlayFactory
         sheet.transform.SetParent(safe.transform, false);
         Paint(sheet, Sheet, true);
         var sheetLayout = sheet.GetComponent<LayoutElement>();
-        sheetLayout.preferredHeight = 760f;
+        sheetLayout.preferredHeight = 860f;
         sheetLayout.flexibleHeight = 0f;
         var motion = new GameObject("Motion", typeof(RectTransform));
         Stretch(motion, sheet.transform);
@@ -57,8 +57,8 @@ public static class SettingsOverlayFactory
         var hint = Label(motion.transform, "Hint", "Звук и музыка запоминаются для этого профиля.", 18f, 26f, FontStyles.Normal, Cream, TextAlignmentOptions.Center, font);
         PrefHeight(hint.gameObject, 56f);
 
-        Button sound = WideButton(motion.transform, "SoundButton", "Выключить звук", Card, Cream, font, out TMP_Text soundLabel);
-        Button music = WideButton(motion.transform, "MusicButton", "Выключить музыку", Card, Cream, font, out TMP_Text musicLabel);
+        Slider sound = VolumeRow(motion.transform, "SoundRow", "Звук", font, out TMP_Text soundLabel);
+        Slider music = VolumeRow(motion.transform, "MusicRow", "Музыка", font, out TMP_Text musicLabel);
         Button reset = WideButton(motion.transform, "ResetButton", "Сбросить прогресс", Reset, Cream, font, out TMP_Text resetLabel);
         Button logout = WideButton(motion.transform, "LogoutButton", "Выйти из профиля", Logout, Cream, font, out _);
         Button close = WideButton(motion.transform, "CloseButton", "Закрыть", Snack, Cream, font, out _);
@@ -76,6 +76,85 @@ public static class SettingsOverlayFactory
             resetLabel,
             group,
             motion.GetComponent<RectTransform>());
+    }
+
+    static Slider VolumeRow(Transform parent, string name, string caption, TMP_FontAsset font, out TMP_Text label)
+    {
+        var row = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+        row.transform.SetParent(parent, false);
+        Paint(row, Card, false);
+        var rowLayout = row.GetComponent<LayoutElement>();
+        rowLayout.minHeight = 148f;
+        rowLayout.preferredHeight = 148f;
+        rowLayout.flexibleWidth = 1f;
+        var column = row.GetComponent<VerticalLayoutGroup>();
+        column.padding = new RectOffset(20, 20, 14, 16);
+        column.spacing = 8f;
+        column.childAlignment = TextAnchor.UpperCenter;
+        column.childControlWidth = true;
+        column.childControlHeight = true;
+        column.childForceExpandWidth = true;
+        column.childForceExpandHeight = false;
+
+        label = Label(row.transform, "Label", caption, 20f, 30f, FontStyles.Bold, Cream, TextAlignmentOptions.MidlineLeft, font);
+        PrefHeight(label.gameObject, 36f);
+
+        var sliderGo = new GameObject("Slider", typeof(RectTransform), typeof(Slider), typeof(LayoutElement));
+        sliderGo.transform.SetParent(row.transform, false);
+        var sliderLayout = sliderGo.GetComponent<LayoutElement>();
+        sliderLayout.minHeight = 64f;
+        sliderLayout.preferredHeight = 64f;
+        sliderLayout.flexibleWidth = 1f;
+
+        var track = new GameObject("Background", typeof(RectTransform), typeof(Image));
+        track.transform.SetParent(sliderGo.transform, false);
+        var trackRect = track.GetComponent<RectTransform>();
+        trackRect.anchorMin = new Vector2(0f, 0.5f);
+        trackRect.anchorMax = new Vector2(1f, 0.5f);
+        trackRect.pivot = new Vector2(0.5f, 0.5f);
+        trackRect.sizeDelta = new Vector2(0f, 18f);
+        Paint(track, new Color(0.08f, 0.16f, 0.1f, 1f), true);
+
+        var fillArea = new GameObject("Fill Area", typeof(RectTransform));
+        fillArea.transform.SetParent(sliderGo.transform, false);
+        var fillAreaRect = fillArea.GetComponent<RectTransform>();
+        fillAreaRect.anchorMin = new Vector2(0f, 0.5f);
+        fillAreaRect.anchorMax = new Vector2(1f, 0.5f);
+        fillAreaRect.pivot = new Vector2(0.5f, 0.5f);
+        fillAreaRect.sizeDelta = new Vector2(-28f, 18f);
+
+        var fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fill.transform.SetParent(fillArea.transform, false);
+        var fillRect = fill.GetComponent<RectTransform>();
+        fillRect.anchorMin = new Vector2(0f, 0f);
+        fillRect.anchorMax = new Vector2(0f, 1f);
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+        Paint(fill, Gold, false);
+
+        var handleArea = new GameObject("Handle Slide Area", typeof(RectTransform));
+        handleArea.transform.SetParent(sliderGo.transform, false);
+        var handleAreaRect = handleArea.GetComponent<RectTransform>();
+        handleAreaRect.anchorMin = Vector2.zero;
+        handleAreaRect.anchorMax = Vector2.one;
+        handleAreaRect.offsetMin = new Vector2(18f, 0f);
+        handleAreaRect.offsetMax = new Vector2(-18f, 0f);
+
+        var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+        handle.transform.SetParent(handleArea.transform, false);
+        var handleRect = handle.GetComponent<RectTransform>();
+        handleRect.sizeDelta = new Vector2(44f, 44f);
+        Paint(handle, Cream, true);
+
+        var slider = sliderGo.GetComponent<Slider>();
+        slider.fillRect = fillRect;
+        slider.handleRect = handleRect;
+        slider.targetGraphic = handle.GetComponent<Image>();
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        return slider;
     }
 
     static Button WideButton(Transform parent, string name, string text, Color color, Color labelColor, TMP_FontAsset font, out TMP_Text label)

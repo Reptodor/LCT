@@ -93,6 +93,7 @@ public class HouseMusic : MonoBehaviour
         }
 
         bool play = GameAudio.MusicOn && _external == 0 && _clips.Length > 0;
+        _source.volume = 0.4f * GameAudio.MusicVolume;
         _source.mute = !GameAudio.MusicOn;
         if (!play)
         {
@@ -134,6 +135,7 @@ public class HouseMusic : MonoBehaviour
 
         _source.clip = _clips[_index];
         _source.loop = _clips.Length == 1;
+        _source.volume = 0.4f * GameAudio.MusicVolume;
         _source.mute = !GameAudio.MusicOn;
         _source.Play();
     }

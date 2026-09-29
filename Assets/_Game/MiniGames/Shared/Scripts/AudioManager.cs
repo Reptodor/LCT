@@ -84,6 +84,7 @@ namespace LCT.MiniGames.Shop
             }
 
             musicSource.mute = false;
+            musicSource.volume = musicVolume * GameAudio.MusicVolume;
             musicSource.clip = backgroundMusic;
             musicSource.Play();
         }
@@ -92,6 +93,7 @@ namespace LCT.MiniGames.Shop
         {
             if (audioSource != null)
             {
+                audioSource.volume = GameAudio.SoundVolume;
                 audioSource.mute = !GameAudio.SoundOn;
             }
 
@@ -100,6 +102,7 @@ namespace LCT.MiniGames.Shop
                 return;
             }
 
+            musicSource.volume = musicVolume * GameAudio.MusicVolume;
             musicSource.mute = !GameAudio.MusicOn;
             if (!GameAudio.MusicOn)
             {

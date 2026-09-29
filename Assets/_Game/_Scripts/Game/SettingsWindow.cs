@@ -5,16 +5,14 @@ using UnityEngine.UI;
 
 public class SettingsWindow : MonoBehaviour
 {
-    static readonly Color OnColor = new Color(0.16f, 0.38f, 0.26f, 1f);
-    static readonly Color OffColor = new Color(0.28f, 0.24f, 0.18f, 1f);
     static readonly Color ResetColor = new Color(0.45f, 0.28f, 0.12f, 1f);
     static readonly Color ConfirmColor = new Color(0.55f, 0.18f, 0.14f, 1f);
 
     GameObject _root;
     CanvasGroup _group;
     RectTransform _motion;
-    Button _soundButton;
-    Button _musicButton;
+    Slider _soundSlider;
+    Slider _musicSlider;
     Button _resetButton;
     TMP_Text _soundLabel;
     TMP_Text _musicLabel;
@@ -22,6 +20,7 @@ public class SettingsWindow : MonoBehaviour
     bool _open;
     bool _busy;
     bool _confirmReset;
+    bool _ignoreSlider;
 
     public System.Action ResetDone;
     public System.Action LogoutRequested;
@@ -34,8 +33,8 @@ public class SettingsWindow : MonoBehaviour
         GameObject root,
         Button dimButton,
         Button closeButton,
-        Button soundButton,
-        Button musicButton,
+        Slider soundSlider,
+        Slider musicSlider,
         Button resetButton,
         Button logoutButton,
         TMP_Text soundLabel,
@@ -45,8 +44,8 @@ public class SettingsWindow : MonoBehaviour
         RectTransform motion)
     {
         _root = root;
-        _soundButton = soundButton;
-        _musicButton = musicButton;
+        _soundSlider = soundSlider;
+        _musicSlider = musicSlider;
         _resetButton = resetButton;
         _soundLabel = soundLabel;
         _musicLabel = musicLabel;
@@ -64,14 +63,14 @@ public class SettingsWindow : MonoBehaviour
             closeButton.onClick.AddListener(Close);
         }
 
-        if (_soundButton != null)
+        if (_soundSlider != null)
         {
-            _soundButton.onClick.AddListener(OnSound);
+            _soundSlider.onValueChanged.AddListener(OnSound);
         }
 
-        if (_musicButton != null)
+        if (_musicSlider != null)
         {
-            _musicButton.onClick.AddListener(OnMusic);
+            _musicSlider.onValueChanged.AddListener(OnMusic);
         }
 
         if (_resetButton != null)
@@ -99,7 +98,7 @@ public class SettingsWindow : MonoBehaviour
 
         GameAudio.Reload();
         ClearConfirm();
-        RefreshToggles();
+        RefreshSliders();
         _root.SetActive(true);
         _root.transform.SetAsLastSibling();
         StopAllCoroutines();
@@ -118,18 +117,28 @@ public class SettingsWindow : MonoBehaviour
         StartCoroutine(CloseRoutine());
     }
 
-    void OnSound()
+    void OnSound(float value)
     {
+        if (_ignoreSlider)
+        {
+            return;
+        }
+
         ClearConfirm();
-        GameAudio.SetSound(!GameAudio.SoundOn);
-        RefreshToggles();
+        GameAudio.SetSoundVolume(value);
+        RefreshCaptions();
     }
 
-    void OnMusic()
+    void OnMusic(float value)
     {
+        if (_ignoreSlider)
+        {
+            return;
+        }
+
         ClearConfirm();
-        GameAudio.SetMusic(!GameAudio.MusicOn);
-        RefreshToggles();
+        GameAudio.SetMusicVolume(value);
+        RefreshCaptions();
     }
 
     void OnReset()
@@ -162,20 +171,39 @@ public class SettingsWindow : MonoBehaviour
         }
     }
 
-    void RefreshToggles()
+    void RefreshSliders()
+    {
+        _ignoreSlider = true;
+        if (_soundSlider != null)
+        {
+            _soundSlider.value = GameAudio.SoundVolume;
+        }
+
+        if (_musicSlider != null)
+        {
+            _musicSlider.value = GameAudio.MusicVolume;
+        }
+
+        _ignoreSlider = false;
+        RefreshCaptions();
+    }
+
+    void RefreshCaptions()
     {
         if (_soundLabel != null)
         {
-            _soundLabel.text = GameAudio.SoundOn ? "Выключить звук" : "Включить звук";
+            _soundLabel.text = "Звук  " + Percent(GameAudio.SoundVolume);
         }
 
         if (_musicLabel != null)
         {
-            _musicLabel.text = GameAudio.MusicOn ? "Выключить музыку" : "Включить музыку";
+            _musicLabel.text = "Музыка  " + Percent(GameAudio.MusicVolume);
         }
+    }
 
-        Tint(_soundButton, GameAudio.SoundOn ? OnColor : OffColor);
-        Tint(_musicButton, GameAudio.MusicOn ? OnColor : OffColor);
+    static string Percent(float volume)
+    {
+        return Mathf.RoundToInt(Mathf.Clamp01(volume) * 100f) + "%";
     }
 
     void ClearConfirm()

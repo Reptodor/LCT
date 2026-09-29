@@ -5,24 +5,26 @@ public static class GameAudio
 {
     public static event Action Changed;
 
-    public static bool SoundOn { get; private set; } = true;
-    public static bool MusicOn { get; private set; } = true;
+    public static float SoundVolume { get; private set; } = 1f;
+    public static float MusicVolume { get; private set; } = 1f;
+    public static bool SoundOn => SoundVolume > 0.001f;
+    public static bool MusicOn => MusicVolume > 0.001f;
 
     public static void Reload()
     {
         string profile = ProfileKey();
-        SoundOn = PlayerPrefs.GetInt(Key("sound", profile), 1) == 1;
-        MusicOn = PlayerPrefs.GetInt(Key("music", profile), 1) == 1;
+        SoundVolume = ReadVolume("sound", profile);
+        MusicVolume = ReadVolume("music", profile);
         if (Changed != null)
         {
             Changed();
         }
     }
 
-    public static void SetSound(bool on)
+    public static void SetSoundVolume(float volume)
     {
-        SoundOn = on;
-        PlayerPrefs.SetInt(Key("sound", ProfileKey()), on ? 1 : 0);
+        SoundVolume = Mathf.Clamp01(volume);
+        PlayerPrefs.SetFloat(Key("sound.vol", ProfileKey()), SoundVolume);
         PlayerPrefs.Save();
         if (Changed != null)
         {
@@ -30,15 +32,32 @@ public static class GameAudio
         }
     }
 
-    public static void SetMusic(bool on)
+    public static void SetMusicVolume(float volume)
     {
-        MusicOn = on;
-        PlayerPrefs.SetInt(Key("music", ProfileKey()), on ? 1 : 0);
+        MusicVolume = Mathf.Clamp01(volume);
+        PlayerPrefs.SetFloat(Key("music.vol", ProfileKey()), MusicVolume);
         PlayerPrefs.Save();
         if (Changed != null)
         {
             Changed();
         }
+    }
+
+    static float ReadVolume(string channel, string profile)
+    {
+        string volumeKey = Key(channel + ".vol", profile);
+        if (PlayerPrefs.HasKey(volumeKey))
+        {
+            return Mathf.Clamp01(PlayerPrefs.GetFloat(volumeKey, 1f));
+        }
+
+        string legacy = Key(channel, profile);
+        if (PlayerPrefs.HasKey(legacy))
+        {
+            return PlayerPrefs.GetInt(legacy, 1) > 0 ? 1f : 0f;
+        }
+
+        return 1f;
     }
 
     public static string ProfileKey()
