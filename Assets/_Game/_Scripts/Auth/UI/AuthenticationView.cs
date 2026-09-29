@@ -54,7 +54,7 @@ public class AuthenticationView : MonoBehaviour
         _auth = service ?? new AuthService();
     }
 
-    private void ShowChoice()
+    public void ShowChoice()
     {
         SetPanel(_choicePanel, true);
         SetPanel(_registerPanel, false);
