@@ -389,11 +389,7 @@ namespace LCT.MiniGames.Exchange
 
         public void OnExitClicked()
         {
-            #if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
-            #else
-                Application.Quit();
-            #endif
+            MiniGameExit.Return();
         }
     }
 }

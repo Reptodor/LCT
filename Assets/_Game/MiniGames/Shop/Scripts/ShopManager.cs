@@ -726,11 +726,7 @@ namespace LCT.MiniGames.Shop
 
         public void OnExitButton()
         {
-            #if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
-            #else
-                Application.Quit();
-            #endif
+            MiniGameExit.Return();
         }
 
         // ===== ОЧИСТКА ЗОНЫ =====
