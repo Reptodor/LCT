@@ -31,7 +31,7 @@ public sealed class ShopItem
 
     public string EffectText => Category == ShopCategory.Required
         ? "+" + Effect + " насыщенности"
-        : "+" + Effect + " настроения";
+        : "+" + Effect + " радости";
 
     public string CategoryText => Category == ShopCategory.Required
         ? "Обязательная покупка"

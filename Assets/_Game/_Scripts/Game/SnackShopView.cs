@@ -183,7 +183,7 @@ public class SnackShopView : MonoBehaviour
 
         if (_status != null)
         {
-            _status.text = "Куплено: " + food.Title + "  ·  −" + food.Cost + " монет";
+            _status.text = "Куплено: " + food.Title + "  ·  −" + food.Cost + " монет  ·  +" + food.Effect + " сытости";
         }
 
         if (_onBought != null)

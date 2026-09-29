@@ -126,7 +126,7 @@ public class FurnishWindow : MonoBehaviour
         }
 
         GameSession.Persist();
-        SetStatus("Куплено: " + item.Title + "  ·  −" + item.Cost + " монет");
+        SetStatus("Куплено: " + item.Title + "  ·  −" + item.Cost + " монет  ·  +" + item.Effect + " радости");
         RefreshShop();
         if (Purchased != null)
         {

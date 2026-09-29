@@ -1,5 +1,7 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -22,6 +24,11 @@ public class GameHud : MonoBehaviour
     SettingsWindow _settings;
     AllowanceWindow _allowance;
     TMP_Text _allowanceTimer;
+    Image _hungerFill;
+    Image _joyFill;
+    FurnitureRepairWindow _repair;
+    bool _armTap;
+    Vector2 _tapPos;
 
     void Awake()
     {
@@ -50,7 +57,16 @@ public class GameHud : MonoBehaviour
         HideRoomSwitch();
         EnsureAllowanceTimer();
         EnsureSkipAllowanceButton();
-        if (GameSession.IsReady && Allowance.EnsureSchedule(GameSession.State))
+        HideHungerReadout();
+        EnsureNeedBars();
+        bool needsSave = false;
+        if (GameSession.IsReady)
+        {
+            needsSave |= Allowance.EnsureSchedule(GameSession.State);
+            needsSave |= Hunger.CatchUp(GameSession.State);
+        }
+
+        if (needsSave)
         {
             GameSession.Persist();
         }
@@ -62,6 +78,9 @@ public class GameHud : MonoBehaviour
     void Update()
     {
         TickAllowance();
+        TickHunger();
+        TickFurniture();
+        PollFurnitureTap();
     }
 
     void OnApplicationPause(bool pauseStatus)
@@ -474,7 +493,7 @@ public class GameHud : MonoBehaviour
 
     void OnFurnitureBought(ShopItem item)
     {
-        SetFeedback(item.Title + ": −" + item.Cost + " монет");
+        SetFeedback(item.Title + ": −" + item.Cost + " монет, +" + item.Effect + " радости");
         Refresh();
     }
 
@@ -493,7 +512,7 @@ public class GameHud : MonoBehaviour
     void OnFoodBought(ShopItem food)
     {
         GameSession.Persist();
-        SetFeedback(food.Title + ": −" + food.Cost + " монет");
+        SetFeedback(food.Title + ": −" + food.Cost + " монет, +" + food.Effect + " сытости");
         Refresh();
     }
 
@@ -631,12 +650,7 @@ public class GameHud : MonoBehaviour
             _allowanceTimer.text = Allowance.FormatRemaining(Allowance.RemainingSeconds(state));
         }
 
-        if (_hunger != null)
-        {
-            _hunger.text = state.hunger.ToString();
-            _hunger.color = new Color(1f, 0.64f, 0.38f, 1f);
-            TintCaption(_hunger, new Color(1f, 0.93f, 0.84f, 1f));
-        }
+        ApplyNeedBars(state);
     }
 
     static void TintCaption(TMP_Text value, Color color)
@@ -715,6 +729,375 @@ public class GameHud : MonoBehaviour
         label.raycastTarget = false;
         label.text = "";
         _allowanceTimer = label;
+    }
+
+    void HideHungerReadout()
+    {
+        if (_hunger == null)
+        {
+            return;
+        }
+
+        Transform card = _hunger.transform;
+        while (card != null && card.name != "HungerCard")
+        {
+            card = card.parent;
+        }
+
+        if (card != null)
+        {
+            card.gameObject.SetActive(false);
+        }
+    }
+
+    void EnsureNeedBars()
+    {
+        if (_petName == null)
+        {
+            return;
+        }
+
+        Transform parent = _petName.transform.parent;
+        if (parent == null)
+        {
+            return;
+        }
+
+        Transform existing = parent.Find("NeedBars");
+        if (existing != null)
+        {
+            _hungerFill = existing.Find("HungerBar/Track/Fill")?.GetComponent<Image>();
+            _joyFill = existing.Find("JoyBar/Track/Fill")?.GetComponent<Image>();
+            return;
+        }
+
+        var root = new GameObject("NeedBars", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+        root.transform.SetParent(parent, false);
+        root.transform.SetSiblingIndex(_petName.transform.GetSiblingIndex() + 1);
+        var ignored = root.GetComponent<LayoutElement>();
+        ignored.ignoreLayout = true;
+
+        RectTransform nameRect = _petName.rectTransform;
+        var rect = root.GetComponent<RectTransform>();
+        rect.anchorMin = nameRect.anchorMin;
+        rect.anchorMax = nameRect.anchorMax;
+        rect.pivot = new Vector2(nameRect.pivot.x, 1f);
+        float nameBottom = nameRect.anchoredPosition.y - nameRect.sizeDelta.y * nameRect.pivot.y;
+        float width = Mathf.Min(760f, nameRect.sizeDelta.x);
+        const float stackHeight = 72f;
+        rect.anchoredPosition = new Vector2(nameRect.anchoredPosition.x, nameBottom - 12f);
+        rect.sizeDelta = new Vector2(width, stackHeight);
+
+        var column = root.GetComponent<VerticalLayoutGroup>();
+        column.spacing = 8f;
+        column.padding = new RectOffset(0, 0, 0, 0);
+        column.childAlignment = TextAnchor.UpperCenter;
+        column.childControlWidth = true;
+        column.childControlHeight = true;
+        column.childForceExpandWidth = true;
+        column.childForceExpandHeight = false;
+
+        _hungerFill = NeedBar(root.transform, "HungerBar", "голод", new Color(1f, 0.58f, 0.28f, 1f));
+        _joyFill = NeedBar(root.transform, "JoyBar", "радость", new Color(0.98f, 0.55f, 0.75f, 1f));
+
+        Transform stats = parent.Find("Stats");
+        if (stats == null)
+        {
+            return;
+        }
+
+        var statsRect = stats.GetComponent<RectTransform>();
+        float barsBottom = rect.anchoredPosition.y - stackHeight;
+        float statsTop = statsRect.anchoredPosition.y + statsRect.sizeDelta.y * (1f - statsRect.pivot.y);
+        float overlap = statsTop - (barsBottom - 16f);
+        if (overlap > 0f)
+        {
+            statsRect.anchoredPosition -= new Vector2(0f, overlap);
+        }
+    }
+
+    Image NeedBar(Transform parent, string name, string caption, Color fillColor)
+    {
+        var row = new GameObject(name, typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        row.transform.SetParent(parent, false);
+        var rowLayout = row.GetComponent<LayoutElement>();
+        rowLayout.minHeight = 32f;
+        rowLayout.preferredHeight = 32f;
+        var rowGroup = row.GetComponent<HorizontalLayoutGroup>();
+        rowGroup.spacing = 12f;
+        rowGroup.childAlignment = TextAnchor.MiddleCenter;
+        rowGroup.childControlWidth = true;
+        rowGroup.childControlHeight = true;
+        rowGroup.childForceExpandWidth = false;
+        rowGroup.childForceExpandHeight = true;
+
+        var labelGo = new GameObject("Label", typeof(RectTransform), typeof(LayoutElement));
+        labelGo.transform.SetParent(row.transform, false);
+        var labelLayout = labelGo.GetComponent<LayoutElement>();
+        labelLayout.minWidth = 148f;
+        labelLayout.preferredWidth = 148f;
+        var label = labelGo.AddComponent<TextMeshProUGUI>();
+        label.text = caption;
+        label.font = _petName.font;
+        label.fontStyle = FontStyles.Bold;
+        label.alignment = TextAlignmentOptions.MidlineRight;
+        label.fontSize = 24f;
+        label.color = fillColor;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+        label.raycastTarget = false;
+
+        var trackGo = new GameObject("Track", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        trackGo.transform.SetParent(row.transform, false);
+        var trackLayout = trackGo.GetComponent<LayoutElement>();
+        trackLayout.flexibleWidth = 1f;
+        trackLayout.minHeight = 22f;
+        trackLayout.preferredHeight = 22f;
+        var track = trackGo.GetComponent<Image>();
+        track.sprite = SolidSprite();
+        track.type = Image.Type.Simple;
+        track.color = new Color(0.08f, 0.14f, 0.08f, 0.82f);
+        track.raycastTarget = false;
+
+        var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fillGo.transform.SetParent(trackGo.transform, false);
+        var fillRect = fillGo.GetComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.offsetMin = new Vector2(3f, 3f);
+        fillRect.offsetMax = new Vector2(-3f, -3f);
+        var fill = fillGo.GetComponent<Image>();
+        fill.sprite = SolidSprite();
+        fill.type = Image.Type.Filled;
+        fill.fillMethod = Image.FillMethod.Horizontal;
+        fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        fill.color = fillColor;
+        fill.raycastTarget = false;
+        fill.fillAmount = 0f;
+        return fill;
+    }
+
+    void ApplyNeedBars(GameState state)
+    {
+        if (state == null)
+        {
+            return;
+        }
+
+        if (_hungerFill != null)
+        {
+            _hungerFill.fillAmount = Mathf.Clamp01(state.hunger / (float)PetActions.HungerMax);
+        }
+
+        if (_joyFill != null)
+        {
+            _joyFill.fillAmount = Mathf.Clamp01(state.joy / (float)PetActions.JoyMax);
+        }
+    }
+
+    void TickHunger()
+    {
+        if (!GameSession.IsReady || !Hunger.CatchUp(GameSession.State))
+        {
+            return;
+        }
+
+        GameSession.Persist();
+        ApplyNeedBars(GameSession.State);
+    }
+
+    void TickFurniture()
+    {
+        if (!GameSession.IsReady || !FurnitureWear.CatchUp(GameSession.State, out string[] broke))
+        {
+            return;
+        }
+
+        GameSession.Persist();
+        ApplyNeedBars(GameSession.State);
+        if (broke != null)
+        {
+            for (int i = 0; i < broke.Length; i++)
+            {
+                LivingFurnish.SetBroken(broke[i], true);
+                if (ShopCatalog.TryFind(broke[i], out ShopItem item))
+                {
+                    SetFeedback("Сломалось: " + item.Title);
+                }
+            }
+        }
+
+        if (_repair != null && _repair.IsOpen)
+        {
+            _repair.Refresh();
+        }
+    }
+
+    void PollFurnitureTap()
+    {
+        if (!GameSession.IsReady || !ReadTap(out Vector2 position) || HitsUi(position) || Camera.main == null)
+        {
+            return;
+        }
+
+        Ray ray = Camera.main.ScreenPointToRay(position);
+        RaycastHit[] hits = Physics.RaycastAll(ray, 80f);
+        int closest = -1;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (IsHouseShell(hits[i].collider))
+            {
+                continue;
+            }
+
+            if (closest < 0 || hits[i].distance < hits[closest].distance)
+            {
+                closest = i;
+            }
+        }
+
+        if (closest < 0)
+        {
+            return;
+        }
+
+        FurniturePick pick = hits[closest].collider.GetComponentInParent<FurniturePick>();
+        if (pick == null || string.IsNullOrEmpty(pick.ItemId))
+        {
+            return;
+        }
+
+        if (!ShopCheckout.Owns(GameSession.State, pick.ItemId))
+        {
+            return;
+        }
+
+        OpenRepair(pick.ItemId);
+    }
+
+    static bool IsHouseShell(Collider collider)
+    {
+        return collider is MeshCollider
+            && collider.gameObject.name == "House"
+            && collider.transform.parent == null;
+    }
+
+    bool ReadTap(out Vector2 position)
+    {
+        position = default;
+        Mouse mouse = Mouse.current;
+        if (mouse != null)
+        {
+            if (mouse.leftButton.wasPressedThisFrame)
+            {
+                _armTap = true;
+                _tapPos = mouse.position.ReadValue();
+            }
+            else if (_armTap && mouse.leftButton.wasReleasedThisFrame)
+            {
+                position = mouse.position.ReadValue();
+                _armTap = false;
+                return (position - _tapPos).sqrMagnitude <= 48f * 48f;
+            }
+        }
+
+        Touchscreen touch = Touchscreen.current;
+        if (touch == null)
+        {
+            return false;
+        }
+
+        UnityEngine.InputSystem.Controls.TouchControl press = touch.primaryTouch;
+        if (press.press.wasPressedThisFrame)
+        {
+            _armTap = true;
+            _tapPos = press.position.ReadValue();
+        }
+        else if (_armTap && press.press.wasReleasedThisFrame)
+        {
+            position = press.position.ReadValue();
+            _armTap = false;
+            return (position - _tapPos).sqrMagnitude <= 48f * 48f;
+        }
+
+        return false;
+    }
+
+    static bool HitsUi(Vector2 screenPos)
+    {
+        if (EventSystem.current == null)
+        {
+            return false;
+        }
+
+        var pointer = new PointerEventData(EventSystem.current)
+        {
+            position = screenPos
+        };
+        var hits = new System.Collections.Generic.List<RaycastResult>();
+        EventSystem.current.RaycastAll(pointer, hits);
+        for (int i = 0; i < hits.Count; i++)
+        {
+            if (hits[i].gameObject.GetComponentInParent<Selectable>() != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void OpenRepair(string itemId)
+    {
+        FurnitureRepairWindow window = EnsureRepair();
+        if (window == null || !window.IsReady)
+        {
+            SetFeedback("Не вышло открыть мебель");
+            return;
+        }
+
+        window.Open(itemId);
+    }
+
+    FurnitureRepairWindow EnsureRepair()
+    {
+        if (_repair == null)
+        {
+            _repair = GetComponent<FurnitureRepairWindow>();
+        }
+
+        if (_repair == null)
+        {
+            _repair = gameObject.AddComponent<FurnitureRepairWindow>();
+        }
+
+        Canvas canvas = FindHudCanvas();
+        if (_repair != null && !_repair.IsReady && canvas != null)
+        {
+            TMP_FontAsset font = _petName != null ? _petName.font : null;
+            FurnitureRepairOverlayFactory.Build(canvas.transform, _repair, font);
+        }
+
+        if (_repair != null)
+        {
+            _repair.Repaired = OnFurnitureRepaired;
+            _repair.RepairFailed = OnFurnitureRepairFailed;
+        }
+
+        return _repair;
+    }
+
+    void OnFurnitureRepaired(string title, int joy, int cost)
+    {
+        string price = cost > 0 ? ", −" + cost + " монет" : "";
+        SetFeedback(joy > 0
+            ? "Починено: " + title + price + ", +" + joy + " радости"
+            : "Починено: " + title + price);
+        Refresh();
+    }
+
+    void OnFurnitureRepairFailed()
+    {
+        SetFeedback("Не хватает монет");
     }
 
     void EnsureSkipAllowanceButton()

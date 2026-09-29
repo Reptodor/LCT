@@ -36,6 +36,12 @@ public static class ShopCheckout
         if (item.Category == ShopCategory.Optional)
         {
             Remember(state, item.Id);
+            PetActions.AddJoy(state, item.Effect);
+            FurnitureWear.Ensure(state, item.Id);
+        }
+        else
+        {
+            PetActions.Feed(state, item.Effect);
         }
 
         return true;
@@ -54,6 +60,8 @@ public static class ShopCheckout
             if (!string.IsNullOrEmpty(owned[i]))
             {
                 LivingFurnish.Place(owned[i]);
+                FurnitureWear.Ensure(GameSession.State, owned[i]);
+                LivingFurnish.SetBroken(owned[i], FurnitureWear.IsBroken(GameSession.State, owned[i]));
             }
         }
     }

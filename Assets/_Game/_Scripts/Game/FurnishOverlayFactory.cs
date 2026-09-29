@@ -54,7 +54,7 @@ public static class FurnishOverlayFactory
         var coins = Label(motion.transform, "Coins", "На счету: 0", 22f, 32f, FontStyles.Bold, Gold, TextAlignmentOptions.MidlineLeft);
         PrefHeight(coins.gameObject, 40f);
 
-        var intro = Label(motion.transform, "Hint", "Мебель — необязательная покупка. Она дает настроение.", 18f, 28f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
+        var intro = Label(motion.transform, "Hint", "Мебель — необязательная покупка. Она дает радость.", 18f, 28f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
         PrefHeight(intro.gameObject, 64f);
 
         var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect), typeof(LayoutElement));
