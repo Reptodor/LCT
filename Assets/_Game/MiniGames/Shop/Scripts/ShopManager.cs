@@ -143,7 +143,7 @@ namespace LCT.MiniGames.Shop
             if (panelStart != null)
                 panelStart.SetActive(true);
             else
-                StartShop(0);
+                StartShop(MiniGameProgress.ResumeIndex(shopLevels.Count));
         }
 
         void Update()
@@ -162,7 +162,7 @@ namespace LCT.MiniGames.Shop
             if (panelStart != null)
                 panelStart.SetActive(false);
 
-            StartShop(0);
+            StartShop(MiniGameProgress.ResumeIndex(shopLevels.Count));
         }
 
         // ===== ДИАЛОГ =====
@@ -652,7 +652,10 @@ namespace LCT.MiniGames.Shop
             if (panelLevelComplete == null) return;
 
             if (!panelLevelComplete.activeSelf)
+            {
                 MiniGamePayout.GrantForActiveScene();
+                MiniGameProgress.AdvanceTo(currentShopIndex + 1, shopLevels.Count);
+            }
 
             int remaining = budget - spent;
 
@@ -705,6 +708,7 @@ namespace LCT.MiniGames.Shop
 
         public void OnRestartButton()
         {
+            MiniGameProgress.ResetActive();
             totalSaved = 0;
             SaveProgress();
 

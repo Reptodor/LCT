@@ -39,6 +39,11 @@ public sealed class SaveService
                 return GameState.CreateDefault();
             }
 
+            if (state.levelProgress == null)
+            {
+                state.levelProgress = new LevelProgress[0];
+            }
+
             return state;
         }
         catch (Exception ex)

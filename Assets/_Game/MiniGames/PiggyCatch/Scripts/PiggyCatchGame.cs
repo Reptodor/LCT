@@ -158,7 +158,7 @@ namespace LCT.MiniGames.PiggyCatch
                 OnPlay = () =>
                 {
                     _totalStars = 0;
-                    StartLevel(0);
+                    StartLevel(MiniGameProgress.ResumeIndex(Levels.Length));
                 }
             });
         }
@@ -464,6 +464,7 @@ namespace LCT.MiniGames.PiggyCatch
             ClearFallers();
             FinanceAudio.Good();
             MiniGamePayout.GrantForActiveScene();
+            MiniGameProgress.AdvanceTo(_levelIndex + 1, Levels.Length);
 
             Level level = Current;
             float fraction = _timeLeft / level.Duration;
@@ -528,6 +529,7 @@ namespace LCT.MiniGames.PiggyCatch
             result.Buttons.Add(RetryButton(() =>
             {
                 _totalStars = 0;
+                MiniGameProgress.ResetActive();
                 StartLevel(0);
             }));
             result.Buttons.Add(ExitButton());

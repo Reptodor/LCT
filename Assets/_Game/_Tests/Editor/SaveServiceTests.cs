@@ -59,4 +59,17 @@ public class SaveServiceTests
         Assert.AreEqual(100, state.coins);
         Assert.AreEqual(AppInfo.Title, state.petName);
     }
+
+    [Test]
+    public void Load_OldSaveWithoutLevelProgress_KeepsCoins()
+    {
+        string json = "{\"petName\":\"Финашка\",\"coins\":40,\"hunger\":70,\"lastSaveUtc\":\"x\"}";
+        File.WriteAllText(Path.Combine(_dir, SaveService.FileName), json);
+
+        GameState state = new SaveService(_dir).LoadOrCreateDefault();
+
+        Assert.AreEqual(40, state.coins);
+        Assert.IsNotNull(state.levelProgress);
+        Assert.AreEqual(0, state.levelProgress.Length);
+    }
 }

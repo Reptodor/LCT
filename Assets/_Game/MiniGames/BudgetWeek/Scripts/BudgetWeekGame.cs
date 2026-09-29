@@ -246,7 +246,7 @@ namespace LCT.MiniGames.BudgetWeek
                 OnPlay = () =>
                 {
                     _totalStars = 0;
-                    StartWeek(0);
+                    StartWeek(MiniGameProgress.ResumeIndex(Weeks.Length));
                 }
             });
         }
@@ -510,6 +510,7 @@ namespace LCT.MiniGames.BudgetWeek
 
             FinanceAudio.Good();
             MiniGamePayout.GrantForActiveScene();
+            MiniGameProgress.AdvanceTo(_weekIndex + 1, Weeks.Length);
             int stars = _mood >= 6 ? 3 : _mood >= 3 ? 2 : 1;
             _totalStars += stars;
             bool last = _weekIndex >= Weeks.Length - 1;
@@ -563,6 +564,7 @@ namespace LCT.MiniGames.BudgetWeek
             result.Buttons.Add(RetryButton(() =>
             {
                 _totalStars = 0;
+                MiniGameProgress.ResetActive();
                 StartWeek(0);
             }));
             result.Buttons.Add(ExitButton());

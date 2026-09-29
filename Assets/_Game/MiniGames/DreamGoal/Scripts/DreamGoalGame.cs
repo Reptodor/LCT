@@ -183,7 +183,7 @@ namespace LCT.MiniGames.DreamGoal
                 OnPlay = () =>
                 {
                     _totalStars = 0;
-                    StartLevel(0);
+                    StartLevel(MiniGameProgress.ResumeIndex(Levels.Length));
                 }
             });
         }
@@ -505,6 +505,7 @@ namespace LCT.MiniGames.DreamGoal
             SetPanelInteractable(false);
             FinanceAudio.Good();
             MiniGamePayout.GrantForActiveScene();
+            MiniGameProgress.AdvanceTo(_levelIndex + 1, Levels.Length);
 
             Level level = Current;
             int weeksLeft = level.Weeks - _week;
@@ -566,6 +567,7 @@ namespace LCT.MiniGames.DreamGoal
             result.Buttons.Add(RetryButton(() =>
             {
                 _totalStars = 0;
+                MiniGameProgress.ResetActive();
                 StartLevel(0);
             }));
             result.Buttons.Add(ExitButton());

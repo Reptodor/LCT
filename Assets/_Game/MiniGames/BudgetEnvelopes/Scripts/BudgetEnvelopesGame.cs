@@ -159,7 +159,7 @@ namespace LCT.MiniGames.BudgetEnvelopes
                 OnPlay = () =>
                 {
                     _totalStars = 0;
-                    StartLevel(0);
+                    StartLevel(MiniGameProgress.ResumeIndex(Levels.Length));
                 }
             });
         }
@@ -478,6 +478,7 @@ namespace LCT.MiniGames.BudgetEnvelopes
             _playing = false;
             FinanceAudio.Good();
             MiniGamePayout.GrantForActiveScene();
+            MiniGameProgress.AdvanceTo(_levelIndex + 1, Levels.Length);
 
             Level level = Current;
             int stars = StarsByTime(_time, level.ThreeStars, level.TwoStars);
@@ -526,6 +527,7 @@ namespace LCT.MiniGames.BudgetEnvelopes
             result.Buttons.Add(RetryButton(() =>
             {
                 _totalStars = 0;
+                MiniGameProgress.ResetActive();
                 StartLevel(0);
             }));
             result.Buttons.Add(ExitButton());

@@ -99,7 +99,18 @@ namespace LCT.MiniGames.Exchange
             allWonBanknotes.Clear();
             availableBanknotes.Clear();
             totalWins = 0;
-            currentLevel = 0;
+            currentLevel = MiniGameProgress.ResumeIndex(banknotes.Count);
+            for (int i = 0; i < currentLevel && i < banknotes.Count; i++)
+            {
+                int value = banknotes[i];
+                totalWins += value;
+                int copies = GetBanknoteCount(value);
+                for (int copy = 0; copy < copies; copy++)
+                {
+                    allWonBanknotes.Add(value);
+                }
+            }
+
             UIManager.Instance.ResetStats();
             StartLevel();
         }
@@ -209,6 +220,7 @@ namespace LCT.MiniGames.Exchange
                     allWonBanknotes.Add(currentBanknoteValue);
 
                 currentLevel++;
+                MiniGameProgress.AdvanceTo(currentLevel, banknotes.Count);
 
                 UIManager.Instance.ClearDropZone();
                 coinsInDrop.Clear();
@@ -240,6 +252,7 @@ namespace LCT.MiniGames.Exchange
 
         public void RestartGame()
         {
+            MiniGameProgress.ResetActive();
             totalWins = 0;
             allWonBanknotes.Clear();
             currentLevel = 0;
