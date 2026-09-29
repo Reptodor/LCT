@@ -393,7 +393,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &75550584
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3821,6 +3821,8 @@ MonoBehaviour:
   _loginSubmitButton: {fileID: 280703167}
   _goLoginButton: {fileID: 582058979}
   _goRegisterButton: {fileID: 234361024}
+  _goGuestButton: {fileID: 0}
+  _goDemoButton: {fileID: 0}
 --- !u!4 &1615694970
 Transform:
   m_ObjectHideFlags: 0

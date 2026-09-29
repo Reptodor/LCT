@@ -1,4 +1,5 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -44,6 +45,7 @@ public sealed class LevelSelectWindow : MonoBehaviour
 
         Bind();
         CollectCards();
+        EnsureArCard();
         SnapHidden();
     }
 
@@ -71,6 +73,7 @@ public sealed class LevelSelectWindow : MonoBehaviour
         transform.SetAsLastSibling();
         Bind();
         CollectCards();
+        EnsureArCard();
         StopAllCoroutines();
         StartCoroutine(OpenRoutine());
     }
@@ -135,6 +138,129 @@ public sealed class LevelSelectWindow : MonoBehaviour
         if (_content != null)
         {
             _cards = _content.GetComponentsInChildren<LevelSelectCard>(true);
+        }
+    }
+
+    void EnsureArCard()
+    {
+        Transform host = _scroll != null ? _scroll.transform.parent : _content;
+        if (host == null)
+        {
+            return;
+        }
+
+        LevelSelectCard card = FindArCard();
+        if (card == null)
+        {
+            LevelSelectCard source = FirstGameCard();
+            if (source == null)
+            {
+                return;
+            }
+
+            card = Instantiate(source, host);
+            card.name = "Card_AR";
+        }
+
+        card.Present("AR", "Оживи своего персонажа", BootController.PetArSceneName);
+        TintAr(card);
+        LevelSelectScrollRelay relay = card.GetComponent<LevelSelectScrollRelay>();
+        if (relay != null)
+        {
+            relay.enabled = false;
+        }
+
+        card.transform.SetParent(host, false);
+        card.transform.SetAsLastSibling();
+        AppendCard(card);
+        if (host is RectTransform column)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(column);
+        }
+    }
+
+    LevelSelectCard FindArCard()
+    {
+        LevelSelectCard[] cards = GetComponentsInChildren<LevelSelectCard>(true);
+        for (int i = 0; i < cards.Length; i++)
+        {
+            if (cards[i] == null)
+            {
+                continue;
+            }
+
+            if (cards[i].name == "Card_AR" || cards[i].SceneName == BootController.PetArSceneName)
+            {
+                return cards[i];
+            }
+        }
+
+        return null;
+    }
+
+    LevelSelectCard FirstGameCard()
+    {
+        if (_cards == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < _cards.Length; i++)
+        {
+            if (_cards[i] != null && _cards[i].name != "Card_AR")
+            {
+                return _cards[i];
+            }
+        }
+
+        return null;
+    }
+
+    void AppendCard(LevelSelectCard card)
+    {
+        if (card == null)
+        {
+            return;
+        }
+
+        int count = _cards != null ? _cards.Length : 0;
+        for (int i = 0; i < count; i++)
+        {
+            if (_cards[i] == card)
+            {
+                return;
+            }
+        }
+
+        var next = new LevelSelectCard[count + 1];
+        for (int i = 0; i < count; i++)
+        {
+            next[i] = _cards[i];
+        }
+
+        next[count] = card;
+        _cards = next;
+    }
+
+    static void TintAr(LevelSelectCard card)
+    {
+        var accent = new Color(0.96f, 0.78f, 0.28f, 1f);
+        TMP_Text[] labels = card.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < labels.Length; i++)
+        {
+            if (labels[i].name == "Value")
+            {
+                labels[i].text = "AR";
+            }
+        }
+
+        Image[] images = card.GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+        {
+            if (images[i].name == "Accent" || images[i].name == "Index")
+            {
+                images[i].color = accent;
+            }
         }
     }
 

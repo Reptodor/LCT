@@ -64,6 +64,16 @@ public static class WorkOverlayFactory
         var soon = Label(menu.transform, "MenuSoon", "Скоро появятся новые игры", 18f, 26f, FontStyles.Italic, Cream);
         PrefHeight(soon.gameObject, 40f);
         Spacer(menu.transform);
+        CoverCard(menu.transform, "ArCard", null, "AR", "Оживи своего персонажа");
+        var arLayout = menu.transform.Find("ArCard").GetComponent<LayoutElement>();
+        arLayout.minHeight = 156f;
+        arLayout.preferredHeight = 168f;
+        var arCover = menu.transform.Find("ArCard/Cover");
+        if (arCover != null)
+        {
+            arCover.gameObject.SetActive(false);
+        }
+
         SlimButton(menu.transform, "CloseMenuButton", "Закрыть", Snack, Cream, 96f);
 
         var play = StretchPage(pages.transform, "Play");
@@ -122,6 +132,7 @@ public static class WorkOverlayFactory
             pagesT.Find("Menu/CloseMenuButton").GetComponent<Button>(),
             pagesT.Find("Play/ClosePlayButton").GetComponent<Button>(),
             pagesT.Find("Menu/NeedWantCard").GetComponent<Button>(),
+            pagesT.Find("Menu/ArCard").GetComponent<Button>(),
             pagesT.Find("Play/NeedButton").GetComponent<Button>(),
             pagesT.Find("Play/WantButton").GetComponent<Button>(),
             pagesT.Find("Result/CollectButton").GetComponent<Button>(),

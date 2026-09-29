@@ -7,6 +7,7 @@ public class BootController : MonoBehaviour
     public const string ProfileSetupSceneName = "ProfileSetup";
     public const string PetCustomizeSceneName = "PetCustomize";
     public const string GameSceneName = "Game";
+    public const string PetArSceneName = "PetAR";
 
     [SerializeField] LoadingView _loading;
 

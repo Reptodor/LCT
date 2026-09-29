@@ -696,6 +696,21 @@ public static class FinashkaUiBuilder
         MakeReadable(soon, Ink);
         PrefHeight(soon.gameObject, 40f);
         Spacer(menu.transform, 1f);
+        CoverGameCard(
+            menu.transform,
+            "ArCard",
+            null,
+            "AR",
+            "Оживи своего персонажа");
+        var arLayout = menu.transform.Find("ArCard").GetComponent<LayoutElement>();
+        arLayout.minHeight = 156f;
+        arLayout.preferredHeight = 168f;
+        var arCover = menu.transform.Find("ArCard/Cover");
+        if (arCover != null)
+        {
+            arCover.gameObject.SetActive(false);
+        }
+
         SlimButton(menu.transform, "CloseMenuButton", "Закрыть", Snack, Cream, 96f);
 
         var play = StretchPage(pages.transform, "Play");
@@ -765,6 +780,7 @@ public static class FinashkaUiBuilder
         so.FindProperty("_closeMenuButton").objectReferenceValue = pages.Find("Menu/CloseMenuButton").GetComponent<Button>();
         so.FindProperty("_closePlayButton").objectReferenceValue = pages.Find("Play/ClosePlayButton").GetComponent<Button>();
         so.FindProperty("_openNeedWantButton").objectReferenceValue = pages.Find("Menu/NeedWantCard").GetComponent<Button>();
+        so.FindProperty("_openArButton").objectReferenceValue = pages.Find("Menu/ArCard").GetComponent<Button>();
         so.FindProperty("_needButton").objectReferenceValue = pages.Find("Play/NeedButton").GetComponent<Button>();
         so.FindProperty("_wantButton").objectReferenceValue = pages.Find("Play/WantButton").GetComponent<Button>();
         so.FindProperty("_collectButton").objectReferenceValue = pages.Find("Result/CollectButton").GetComponent<Button>();

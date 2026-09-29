@@ -20,6 +20,20 @@ public sealed class LevelSelectCard : MonoBehaviour
 
     public bool HasScene => !string.IsNullOrEmpty(_sceneName);
 
+    public void Present(string title, string subtitle, string sceneName)
+    {
+        _sceneName = sceneName ?? "";
+        if (_title != null)
+        {
+            _title.text = title;
+        }
+
+        if (_subtitle != null)
+        {
+            _subtitle.text = subtitle;
+        }
+    }
+
     private void Awake()
     {
         CacheRest();

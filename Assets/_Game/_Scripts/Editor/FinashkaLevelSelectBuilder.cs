@@ -197,7 +197,8 @@ public static class FinashkaLevelSelectBuilder
             new CardSpec("Card_DreamGoal", "Путь к мечте", "Откладывай каждую неделю", "DreamGoal", new Color(0.62f, 0.48f, 0.86f, 1f)),
             new CardSpec("Card_PiggyCatch", "Копилка", "Лови монеты и копи на мечту", "PiggyCatch", new Color(0.93f, 0.45f, 0.48f, 1f)),
             new CardSpec("Card_Exchange", "Обмен", "Собери сумму монетами и купюрами", "Exchange", new Color(0.28f, 0.62f, 0.78f, 1f)),
-            new CardSpec("Card_Shop", "Магазин", "Покупай и считай сдачу", "Shop", new Color(0.86f, 0.48f, 0.22f, 1f))
+            new CardSpec("Card_Shop", "Магазин", "Покупай и считай сдачу", "Shop", new Color(0.86f, 0.48f, 0.22f, 1f)),
+            new CardSpec("Card_AR", "AR", "Оживи своего персонажа", "PetAR", new Color(0.96f, 0.78f, 0.28f, 1f))
         };
 
         var cards = new LevelSelectCard[specs.Length];

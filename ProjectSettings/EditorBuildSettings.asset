@@ -12,6 +12,9 @@ EditorBuildSettings:
     path: Assets/_Game/_Scenes/Game.unity
     guid: 44a87efaae06c12448aa4877d6c4ee98
   - enabled: 1
+    path: Assets/_Game/_Scenes/PetAR.unity
+    guid: 6b8e4d1a9c0f47e2b5a3d7c8e1f0429a
+  - enabled: 1
     path: Assets/_Game/_Scenes/MiniGames/BudgetEnvelopes.unity
     guid: c33a2d592663747d182a79cf04ccf5b0
   - enabled: 1
