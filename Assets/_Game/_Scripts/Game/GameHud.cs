@@ -20,6 +20,8 @@ public class GameHud : MonoBehaviour
     LevelSelectWindow _levelSelect;
     SavingsWindow _savings;
     SettingsWindow _settings;
+    AllowanceWindow _allowance;
+    TMP_Text _allowanceTimer;
 
     void Awake()
     {
@@ -47,8 +49,19 @@ public class GameHud : MonoBehaviour
         EnsureSettingsButton();
         EnsureDebugCoinsButton();
         HideRoomSwitch();
+        EnsureAllowanceTimer();
+        if (GameSession.IsReady && Allowance.EnsureSchedule(GameSession.State))
+        {
+            GameSession.Persist();
+        }
+
         Refresh();
         OpenSavingsIfNeeded();
+    }
+
+    void Update()
+    {
+        TickAllowance();
     }
 
     void OnApplicationPause(bool pauseStatus)
@@ -692,6 +705,11 @@ public class GameHud : MonoBehaviour
             TintCaption(_coins, new Color(1f, 0.96f, 0.86f, 1f));
         }
 
+        if (_allowanceTimer != null)
+        {
+            _allowanceTimer.text = Allowance.FormatRemaining(Allowance.RemainingSeconds(state));
+        }
+
         if (_hunger != null)
         {
             _hunger.text = state.hunger.ToString();
@@ -718,6 +736,132 @@ public class GameHud : MonoBehaviour
         {
             label.color = color;
         }
+    }
+
+    void EnsureAllowanceTimer()
+    {
+        if (_coins == null)
+        {
+            return;
+        }
+
+        Transform parent = _coins.transform.parent;
+        if (parent == null)
+        {
+            return;
+        }
+
+        Transform existing = parent.Find("AllowanceTimer");
+        if (existing != null)
+        {
+            _allowanceTimer = existing.GetComponent<TMP_Text>();
+            return;
+        }
+
+        var coinsLayout = _coins.GetComponent<LayoutElement>();
+        if (coinsLayout != null)
+        {
+            coinsLayout.minHeight = 64f;
+            coinsLayout.preferredHeight = 64f;
+        }
+
+        Transform caption = parent.Find("Caption");
+        if (caption != null)
+        {
+            var captionLayout = caption.GetComponent<LayoutElement>();
+            if (captionLayout != null)
+            {
+                captionLayout.minHeight = 36f;
+                captionLayout.preferredHeight = 36f;
+            }
+        }
+
+        var go = new GameObject("AllowanceTimer", typeof(RectTransform), typeof(LayoutElement));
+        go.transform.SetParent(parent, false);
+        go.transform.SetSiblingIndex(_coins.transform.GetSiblingIndex() + 1);
+        var layout = go.GetComponent<LayoutElement>();
+        layout.minHeight = 36f;
+        layout.preferredHeight = 36f;
+        var label = go.AddComponent<TextMeshProUGUI>();
+        label.font = _coins.font;
+        label.fontStyle = FontStyles.Bold;
+        label.alignment = TextAlignmentOptions.MidlineLeft;
+        label.enableAutoSizing = true;
+        label.fontSizeMin = 18f;
+        label.fontSizeMax = 28f;
+        label.color = new Color(1f, 0.96f, 0.86f, 1f);
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+        label.raycastTarget = false;
+        label.text = "";
+        _allowanceTimer = label;
+    }
+
+    void TickAllowance()
+    {
+        if (!GameSession.IsReady)
+        {
+            return;
+        }
+
+        GameState state = GameSession.State;
+        if (Allowance.EnsureSchedule(state))
+        {
+            GameSession.Persist();
+        }
+
+        float left = Allowance.RemainingSeconds(state);
+        if (_allowanceTimer != null)
+        {
+            _allowanceTimer.text = Allowance.FormatRemaining(left);
+        }
+
+        if (left > 0f || (_allowance != null && _allowance.IsOpen))
+        {
+            return;
+        }
+
+        AllowanceWindow window = EnsureAllowance();
+        if (window == null)
+        {
+            return;
+        }
+
+        window.Confirmed = OnAllowanceConfirmed;
+        window.Open(Allowance.Config.Amount);
+    }
+
+    void OnAllowanceConfirmed()
+    {
+        if (!GameSession.IsReady)
+        {
+            return;
+        }
+
+        Allowance.Grant(GameSession.State);
+        GameSession.Persist();
+        Refresh();
+    }
+
+    AllowanceWindow EnsureAllowance()
+    {
+        if (_allowance == null)
+        {
+            _allowance = GetComponent<AllowanceWindow>();
+        }
+
+        if (_allowance == null)
+        {
+            _allowance = gameObject.AddComponent<AllowanceWindow>();
+        }
+
+        Canvas canvas = FindHudCanvas();
+        if (_allowance != null && !_allowance.IsReady && canvas != null)
+        {
+            TMP_FontAsset font = _coins != null ? _coins.font : _petName != null ? _petName.font : null;
+            AllowanceOverlayFactory.Build(canvas.transform, _allowance, font);
+        }
+
+        return _allowance;
     }
 
     void SetFeedback(string text)

@@ -21,6 +21,7 @@ public class GameState
     public string savingsGoalId = "";
     public SavingsPot[] savings = new SavingsPot[0];
     public string[] ownedItems = new string[0];
+    public string nextAllowanceUtc = "";
 
     public static GameState CreateDefault()
     {
@@ -36,7 +37,8 @@ public class GameState
             levelProgress = new LevelProgress[0],
             savingsGoalId = "",
             savings = new SavingsPot[0],
-            ownedItems = new string[0]
+            ownedItems = new string[0],
+            nextAllowanceUtc = ""
         };
     }
 }
