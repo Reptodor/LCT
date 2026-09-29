@@ -534,24 +534,14 @@ public class GameHud : MonoBehaviour
 
         if (_furnish != null)
         {
-            _furnish.ItemChosen = OnFurnishChosen;
+            _furnish.Purchased = OnFurnitureBought;
         }
     }
 
-    void OnFurnishChosen(string itemId)
+    void OnFurnitureBought(ShopItem item)
     {
-        if (_furnish != null && _furnish.IsOpen)
-        {
-            _furnish.Close();
-        }
-
-        if (!LivingFurnish.Place(itemId))
-        {
-            SetFeedback("Не вышло поставить");
-            return;
-        }
-
-        SetFeedback("Купили");
+        SetFeedback(item.Title + ": −" + item.Cost + " монет");
+        Refresh();
     }
 
     void OnSnack()
@@ -566,10 +556,10 @@ public class GameHud : MonoBehaviour
         _snackShop.Open();
     }
 
-    void OnFoodBought(FoodItem food)
+    void OnFoodBought(ShopItem food)
     {
         GameSession.Persist();
-        SetFeedback(food.Title + ": −" + food.Cost + " монет, +" + food.Hunger + " сытости");
+        SetFeedback(food.Title + ": −" + food.Cost + " монет");
         Refresh();
     }
 

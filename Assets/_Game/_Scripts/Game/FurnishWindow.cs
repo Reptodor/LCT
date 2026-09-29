@@ -24,6 +24,8 @@ public class FurnishWindow : MonoBehaviour
     Button _dimButton;
     Button _closeButton;
     TMP_Text _title;
+    TMP_Text _coins;
+    TMP_Text _status;
     ScrollRect _scroll;
     CanvasGroup _group;
     RectTransform _motion;
@@ -32,7 +34,7 @@ public class FurnishWindow : MonoBehaviour
     bool _open;
     bool _busy;
 
-    public System.Action<string> ItemChosen;
+    public System.Action<ShopItem> Purchased;
 
     public bool IsReady => _root != null;
 
@@ -46,12 +48,16 @@ public class FurnishWindow : MonoBehaviour
         ScrollRect scroll,
         FurnishRoomRows[] rooms,
         CanvasGroup group,
-        RectTransform motion)
+        RectTransform motion,
+        TMP_Text coins,
+        TMP_Text status)
     {
         _root = root;
         _dimButton = dimButton;
         _closeButton = closeButton;
         _title = title;
+        _coins = coins;
+        _status = status;
         _scroll = scroll;
         _rooms = rooms ?? System.Array.Empty<FurnishRoomRows>();
         _group = group;
@@ -79,11 +85,52 @@ public class FurnishWindow : MonoBehaviour
         _closeButton.onClick.AddListener(Close);
     }
 
-    public void Choose(string itemId)
+    public void Buy(string itemId)
     {
-        if (ItemChosen != null)
+        if (!ShopCatalog.TryFind(itemId, out ShopItem item) || item.Category != ShopCategory.Optional)
         {
-            ItemChosen(itemId);
+            SetStatus("Этого товара нет");
+            return;
+        }
+
+        if (!GameSession.IsReady)
+        {
+            return;
+        }
+
+        if (ShopCheckout.Owns(GameSession.State, item.Id))
+        {
+            SetStatus("«" + item.Title + "» уже куплено");
+            RefreshShop();
+            return;
+        }
+
+        if (!ShopCheckout.CanPay(GameSession.State, item))
+        {
+            SetStatus("Не хватает монет на «" + item.Title + "»");
+            RefreshShop();
+            return;
+        }
+
+        if (!LivingFurnish.Place(item.Id))
+        {
+            SetStatus("Не вышло поставить «" + item.Title + "»");
+            return;
+        }
+
+        if (!ShopCheckout.TryPay(GameSession.State, item))
+        {
+            SetStatus("Не хватает монет на «" + item.Title + "»");
+            RefreshShop();
+            return;
+        }
+
+        GameSession.Persist();
+        SetStatus("Куплено: " + item.Title + "  ·  −" + item.Cost + " монет");
+        RefreshShop();
+        if (Purchased != null)
+        {
+            Purchased(item);
         }
     }
 
@@ -95,6 +142,8 @@ public class FurnishWindow : MonoBehaviour
         }
 
         ShowRoom(roomId);
+        SetStatus("Выбери мебель");
+        RefreshShop();
         _root.SetActive(true);
         _root.transform.SetAsLastSibling();
         if (_scroll != null)
@@ -231,6 +280,60 @@ public class FurnishWindow : MonoBehaviour
         if (_title != null && match >= 0 && _rooms[match] != null)
         {
             _title.text = _rooms[match].Title;
+        }
+    }
+
+    void RefreshShop()
+    {
+        int coins = GameSession.IsReady ? GameSession.State.coins : 0;
+        if (_coins != null)
+        {
+            _coins.text = "На счету: " + coins;
+        }
+
+        for (int i = 0; i < _rooms.Length; i++)
+        {
+            GameObject[] rows = _rooms[i] != null ? _rooms[i].Rows : null;
+            if (rows == null)
+            {
+                continue;
+            }
+
+            for (int r = 0; r < rows.Length; r++)
+            {
+                GameObject row = rows[r];
+                if (row == null || !ShopCatalog.TryFind(row.name, out ShopItem item))
+                {
+                    continue;
+                }
+
+                Transform buttonTransform = row.transform.Find("Visual/Info/BuyButton");
+                if (buttonTransform == null)
+                {
+                    continue;
+                }
+
+                var button = buttonTransform.GetComponent<Button>();
+                var label = buttonTransform.GetComponentInChildren<TMP_Text>();
+                bool owned = GameSession.IsReady && ShopCheckout.Owns(GameSession.State, item.Id);
+                if (label != null)
+                {
+                    label.text = owned ? "Куплено" : "Купить";
+                }
+
+                if (button != null)
+                {
+                    button.interactable = !owned && coins >= item.Cost;
+                }
+            }
+        }
+    }
+
+    void SetStatus(string text)
+    {
+        if (_status != null)
+        {
+            _status.text = text;
         }
     }
 }

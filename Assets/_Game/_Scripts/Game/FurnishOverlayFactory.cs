@@ -51,42 +51,48 @@ public static class FurnishOverlayFactory
         var header = Label(motion.transform, "Title", "Расстановка", 34f, 52f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
         PrefHeight(header.gameObject, 56f);
 
-        var intro = Label(motion.transform, "Hint", "Пока только картинки. Выбрать предмет ещё нельзя.", 18f, 28f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
+        var coins = Label(motion.transform, "Coins", "На счету: 0", 22f, 32f, FontStyles.Bold, Gold, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(coins.gameObject, 40f);
+
+        var intro = Label(motion.transform, "Hint", "Мебель — необязательная покупка. Она дает настроение.", 18f, 28f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
         PrefHeight(intro.gameObject, 64f);
 
-        var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(Mask), typeof(ScrollRect), typeof(LayoutElement));
+        var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect), typeof(LayoutElement));
         scrollGo.transform.SetParent(motion.transform, false);
-        Paint(scrollGo, new Color(0f, 0f, 0f, 0.12f), true);
-        scrollGo.GetComponent<Mask>().showMaskGraphic = false;
+        Paint(scrollGo, new Color(0f, 0f, 0f, 0f), false);
         var scrollLayout = scrollGo.GetComponent<LayoutElement>();
         scrollLayout.flexibleHeight = 1f;
-        scrollLayout.minHeight = 420f;
+        scrollLayout.minHeight = 280f;
+
+        var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
+        Stretch(viewportGo, scrollGo.transform);
+        Paint(viewportGo, new Color(0f, 0f, 0f, 0.01f), true);
 
         var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-        content.transform.SetParent(scrollGo.transform, false);
         var contentRt = content.GetComponent<RectTransform>();
+        contentRt.SetParent(viewportGo.transform, false);
         contentRt.anchorMin = new Vector2(0f, 1f);
         contentRt.anchorMax = new Vector2(1f, 1f);
         contentRt.pivot = new Vector2(0.5f, 1f);
-        contentRt.offsetMin = Vector2.zero;
-        contentRt.offsetMax = Vector2.zero;
-        Column(content, new RectOffset(8, 8, 8, 8), 12f, TextAnchor.UpperCenter);
+        contentRt.sizeDelta = new Vector2(0f, 0f);
+        Column(content, new RectOffset(4, 8, 4, 16), 12f, TextAnchor.UpperCenter);
         var fitter = content.GetComponent<ContentSizeFitter>();
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
 
         var scroll = scrollGo.GetComponent<ScrollRect>();
         scroll.content = contentRt;
-        scroll.viewport = scrollGo.GetComponent<RectTransform>();
+        scroll.viewport = viewportGo.GetComponent<RectTransform>();
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
-        scroll.scrollSensitivity = 24f;
+        scroll.scrollSensitivity = 28f;
 
-        var rooms = new FurnishRoomRows[FurnishCatalog.Sections.Length];
-        for (int s = 0; s < FurnishCatalog.Sections.Length; s++)
+        FurnishSection[] sections = FurnishCatalog.Sections;
+        var rooms = new FurnishRoomRows[sections.Length];
+        for (int s = 0; s < sections.Length; s++)
         {
-            FurnishSection section = FurnishCatalog.Sections[s];
+            FurnishSection section = sections[s];
             var rowList = new System.Collections.Generic.List<GameObject>();
             for (int i = 0; i < section.Items.Length; i++)
             {
@@ -96,6 +102,8 @@ public static class FurnishOverlayFactory
             rooms[s] = new FurnishRoomRows(section.RoomId, section.Title, rowList.ToArray());
         }
 
+        var status = Label(motion.transform, "Status", "Выбери мебель", 18f, 26f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
+        PrefHeight(status.gameObject, 48f);
         SlimButton(motion.transform, "CloseButton", "Закрыть", Snack, Cream, 96f);
         view.Setup(
             overlay,
@@ -105,15 +113,17 @@ public static class FurnishOverlayFactory
             scroll,
             rooms,
             group,
-            motion.GetComponent<RectTransform>());
+            motion.GetComponent<RectTransform>(),
+            coins,
+            status);
     }
 
-    static GameObject ItemCard(Transform parent, FurnishEntry entry, FurnishWindow view)
+    static GameObject ItemCard(Transform parent, ShopItem entry, FurnishWindow view)
     {
         var go = new GameObject(entry.Id, typeof(RectTransform), typeof(LayoutElement));
         go.transform.SetParent(parent, false);
-        PrefHeight(go, 168f);
-        var visualGo = new GameObject("Visual", typeof(RectTransform), typeof(CanvasGroup), typeof(Image), typeof(HorizontalLayoutGroup));
+        PrefHeight(go, 248f);
+        var visualGo = new GameObject("Visual", typeof(RectTransform), typeof(CanvasGroup), typeof(Image), typeof(HorizontalLayoutGroup), typeof(LevelSelectScrollRelay));
         Stretch(visualGo, go.transform);
         Paint(visualGo, Card, true);
         var row = visualGo.GetComponent<HorizontalLayoutGroup>();
@@ -139,13 +149,29 @@ public static class FurnishOverlayFactory
         pictureLayout.preferredHeight = 132f;
         pictureLayout.flexibleWidth = 0f;
 
-        var title = Label(visualGo.transform, "Title", entry.Title, 22f, 34f, FontStyles.Bold, Cream, TextAlignmentOptions.MidlineLeft);
-        title.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
-        var button = go.AddComponent<Button>();
-        button.targetGraphic = visualGo.GetComponent<Image>();
-        button.transition = Selectable.Transition.ColorTint;
+        var columnGo = new GameObject("Info", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+        columnGo.transform.SetParent(visualGo.transform, false);
+        var column = columnGo.GetComponent<VerticalLayoutGroup>();
+        column.spacing = 2f;
+        column.childAlignment = TextAnchor.MiddleLeft;
+        column.childControlWidth = true;
+        column.childControlHeight = true;
+        column.childForceExpandWidth = true;
+        column.childForceExpandHeight = false;
+        columnGo.GetComponent<LayoutElement>().flexibleWidth = 1f;
+
+        var title = Label(columnGo.transform, "Title", entry.Title, 22f, 32f, FontStyles.Bold, Cream, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(title.gameObject, 36f);
+        var price = Label(columnGo.transform, "Price", entry.PriceText, 18f, 26f, FontStyles.Bold, Gold, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(price.gameObject, 30f);
+        var effect = Label(columnGo.transform, "Effect", entry.EffectText, 16f, 24f, FontStyles.Normal, Cream, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(effect.gameObject, 28f);
+        var category = Label(columnGo.transform, "Category", entry.CategoryText, 16f, 24f, FontStyles.Normal, Cream, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(category.gameObject, 28f);
+        Button buy = SlimButton(columnGo.transform, "BuyButton", "Купить", Gold, new Color(0.14f, 0.16f, 0.08f, 1f), 52f);
+        buy.gameObject.AddComponent<LevelSelectScrollRelay>();
         string itemId = entry.Id;
-        button.onClick.AddListener(() => view.Choose(itemId));
+        buy.onClick.AddListener(() => view.Buy(itemId));
         return go;
     }
 

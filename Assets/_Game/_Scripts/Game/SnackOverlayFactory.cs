@@ -6,19 +6,21 @@ public static class SnackOverlayFactory
 {
     static readonly Color Cream = new Color(1f, 0.97f, 0.88f, 1f);
     static readonly Color Gold = new Color(0.96f, 0.78f, 0.28f, 1f);
+    static readonly Color Muted = new Color(0.86f, 0.9f, 0.78f, 1f);
     static readonly Color Snack = new Color(0.7f, 0.32f, 0.14f, 1f);
     static readonly Color Dim = new Color(0.04f, 0.08f, 0.03f, 0.78f);
-    static readonly Color Sheet = new Color(0.16f, 0.32f, 0.18f, 0.98f);
-    static readonly Color Card = new Color(0.10f, 0.22f, 0.12f, 1f);
+    static readonly Color Sheet = new Color(0.11f, 0.26f, 0.15f, 0.98f);
+    static readonly Color Card = new Color(0.07f, 0.16f, 0.09f, 1f);
     static readonly Color Buy = new Color(0.95f, 0.74f, 0.18f, 1f);
     static readonly Color Ink = new Color(0.14f, 0.16f, 0.08f, 1f);
+    static readonly Color Track = new Color(0.08f, 0.14f, 0.07f, 0.55f);
 
     public static void Build(Transform canvas, SnackShopView view)
     {
         Transform existing = canvas.Find("SnackOverlay");
         if (existing != null)
         {
-            Object.DestroyImmediate(existing.gameObject);
+            Object.Destroy(existing.gameObject);
         }
 
         var overlay = new GameObject("SnackOverlay", typeof(RectTransform), typeof(CanvasGroup));
@@ -31,106 +33,106 @@ public static class SnackOverlayFactory
 
         var dimGo = new GameObject("Dim", typeof(RectTransform), typeof(Image), typeof(Button));
         Stretch(dimGo, overlay.transform);
-        var dimImg = dimGo.GetComponent<Image>();
-        dimImg.color = Dim;
-        dimImg.raycastTarget = true;
+        var dimImg = Paint(dimGo, Dim, true);
         var dimBtn = dimGo.GetComponent<Button>();
         dimBtn.targetGraphic = dimImg;
         dimBtn.transition = Selectable.Transition.None;
 
         var safe = new GameObject("SheetSafe", typeof(RectTransform), typeof(SafeAreaFitter));
         Stretch(safe, overlay.transform);
-        Column(safe, new RectOffset(36, 36, 36, 36), 0f, TextAnchor.MiddleCenter);
+        Column(safe, new RectOffset(28, 28, 20, 24), 0f, TextAnchor.MiddleCenter);
 
         var sheet = new GameObject("Sheet", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
         sheet.transform.SetParent(safe.transform, false);
         Paint(sheet, Sheet, true);
         sheet.GetComponent<LayoutElement>().flexibleHeight = 1f;
+
         var motion = new GameObject("Motion", typeof(RectTransform));
         Stretch(motion, sheet.transform);
-        Column(motion, new RectOffset(28, 28, 24, 24), 12f, TextAnchor.UpperCenter);
+        Column(motion, new RectOffset(28, 28, 28, 22), 16f, TextAnchor.UpperCenter);
 
         var header = new GameObject("Header", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         header.transform.SetParent(motion.transform, false);
-        PrefHeight(header, 84f);
+        PrefHeight(header, 92f);
         var headerRow = header.GetComponent<HorizontalLayoutGroup>();
         headerRow.spacing = 16f;
         headerRow.childAlignment = TextAnchor.MiddleCenter;
         headerRow.childControlWidth = true;
         headerRow.childControlHeight = true;
-        headerRow.childForceExpandWidth = true;
+        headerRow.childForceExpandWidth = false;
         headerRow.childForceExpandHeight = true;
-        var title = Label(header.transform, "SnackTitle", "Перекус", 28f, 40f, FontStyles.Bold, Gold, TextAlignmentOptions.MidlineLeft);
+        var title = Label(header.transform, "SnackTitle", "Перекус", 36f, 56f, FontStyles.Bold, Gold, TextAlignmentOptions.MidlineLeft);
         title.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
-        var close = SlimButton(header.transform, "CloseSnackButton", "Закрыть", Snack, Cream, 76f);
+        var close = SlimButton(header.transform, "CloseSnackButton", "Закрыть", Track, Cream, 84f);
         var closeLayout = close.GetComponent<LayoutElement>();
         closeLayout.flexibleWidth = 0f;
         closeLayout.preferredWidth = 196f;
 
-        var coins = Label(motion.transform, "SnackCoins", "Монеты: 100", 22f, 34f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
-        PrefHeight(coins.gameObject, 40f);
+        var coins = Label(motion.transform, "SnackCoins", "На счету: 0", 24f, 36f, FontStyles.Bold, Cream, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(coins.gameObject, 52f);
 
-        var intro = Label(motion.transform, "SnackIntro", "Разная еда — разная цена. Дороже обычно сытнее.", 18f, 28f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
-        PrefHeight(intro.gameObject, 64f);
+        var intro = Label(motion.transform, "SnackIntro", "Еда — обязательная покупка. Она дает насыщенность.", 20f, 28f, FontStyles.Normal, Muted, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(intro.gameObject, 72f);
 
-        var scrollGo = new GameObject("FoodScroll", typeof(RectTransform), typeof(Image), typeof(Mask), typeof(ScrollRect), typeof(LayoutElement));
+        var scrollGo = new GameObject("FoodScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect), typeof(LayoutElement));
         scrollGo.transform.SetParent(motion.transform, false);
-        Paint(scrollGo, new Color(0f, 0f, 0f, 0.12f), true);
-        scrollGo.GetComponent<Mask>().showMaskGraphic = false;
+        Paint(scrollGo, new Color(0f, 0f, 0f, 0f), false);
         var scrollLayout = scrollGo.GetComponent<LayoutElement>();
         scrollLayout.flexibleHeight = 1f;
-        scrollLayout.minHeight = 420f;
+        scrollLayout.minHeight = 280f;
+
+        var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
+        Stretch(viewportGo, scrollGo.transform);
+        Paint(viewportGo, new Color(0f, 0f, 0f, 0.01f), true);
 
         var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-        content.transform.SetParent(scrollGo.transform, false);
         var contentRt = content.GetComponent<RectTransform>();
+        contentRt.SetParent(viewportGo.transform, false);
         contentRt.anchorMin = new Vector2(0f, 1f);
         contentRt.anchorMax = new Vector2(1f, 1f);
         contentRt.pivot = new Vector2(0.5f, 1f);
-        contentRt.offsetMin = Vector2.zero;
-        contentRt.offsetMax = Vector2.zero;
-        Column(content, new RectOffset(8, 8, 8, 8), 12f, TextAnchor.UpperCenter);
+        contentRt.sizeDelta = new Vector2(0f, 0f);
+        Column(content, new RectOffset(4, 8, 4, 16), 12f, TextAnchor.UpperCenter);
         var fitter = content.GetComponent<ContentSizeFitter>();
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
 
         var scroll = scrollGo.GetComponent<ScrollRect>();
         scroll.content = contentRt;
-        scroll.viewport = scrollGo.GetComponent<RectTransform>();
+        scroll.viewport = viewportGo.GetComponent<RectTransform>();
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
-        scroll.scrollSensitivity = 24f;
+        scroll.scrollSensitivity = 28f;
 
-        var buyButtons = new Button[FoodCatalog.All.Length];
-        for (int i = 0; i < FoodCatalog.All.Length; i++)
+        var buyButtons = new Button[ShopCatalog.Food.Length];
+        for (int i = 0; i < ShopCatalog.Food.Length; i++)
         {
-            buyButtons[i] = FoodCard(content.transform, FoodCatalog.All[i], i);
+            buyButtons[i] = FoodCard(content.transform, ShopCatalog.Food[i], i);
         }
 
-        var status = Label(motion.transform, "SnackStatus", "Выбери еду. Дороже — сытнее.", 18f, 28f, FontStyles.Bold, Cream, TextAlignmentOptions.Center);
-        PrefHeight(status.gameObject, 56f);
+        var status = Label(motion.transform, "SnackStatus", "Выбери еду", 20f, 28f, FontStyles.Normal, Muted, TextAlignmentOptions.Center);
+        PrefHeight(status.gameObject, 48f);
 
         var visuals = new RectTransform[buyButtons.Length];
         for (int i = 0; i < buyButtons.Length; i++)
         {
-            var visual = content.transform.Find("Food_" + i + "/Visual") as RectTransform;
-            visuals[i] = visual;
+            visuals[i] = content.transform.Find("Food_" + i + "/Visual") as RectTransform;
         }
 
         view.Setup(overlay, dimBtn, close, coins, status, buyButtons, group, motion.GetComponent<RectTransform>(), visuals);
     }
 
-    static Button FoodCard(Transform parent, FoodItem food, int index)
+    static Button FoodCard(Transform parent, ShopItem food, int index)
     {
         var go = new GameObject("Food_" + index, typeof(RectTransform), typeof(LayoutElement));
         go.transform.SetParent(parent, false);
-        PrefHeight(go, 176f);
-        var visualGo = new GameObject("Visual", typeof(RectTransform), typeof(CanvasGroup), typeof(Image), typeof(VerticalLayoutGroup));
+        PrefHeight(go, 248f);
+        var visualGo = new GameObject("Visual", typeof(RectTransform), typeof(CanvasGroup), typeof(Image), typeof(VerticalLayoutGroup), typeof(LevelSelectScrollRelay));
         Stretch(visualGo, go.transform);
-        Paint(visualGo, Card, false);
+        Paint(visualGo, Card, true);
         var column = visualGo.GetComponent<VerticalLayoutGroup>();
-        column.padding = new RectOffset(16, 16, 12, 12);
+        column.padding = new RectOffset(20, 20, 14, 14);
         column.spacing = 4f;
         column.childAlignment = TextAnchor.MiddleCenter;
         column.childControlWidth = true;
@@ -138,13 +140,17 @@ public static class SnackOverlayFactory
         column.childForceExpandWidth = true;
         column.childForceExpandHeight = false;
 
-        var title = Label(visualGo.transform, "Title", food.Title, 26f, 38f, FontStyles.Bold, Gold, TextAlignmentOptions.Center);
-        PrefHeight(title.gameObject, 40f);
-        var price = Label(visualGo.transform, "Price", food.Cost + " монет  ·  +" + food.Hunger + " сытости", 18f, 26f, FontStyles.Bold, Cream, TextAlignmentOptions.Center);
+        var title = Label(visualGo.transform, "Title", food.Title, 26f, 38f, FontStyles.Bold, Gold, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(title.gameObject, 42f);
+        var price = Label(visualGo.transform, "Price", food.PriceText, 20f, 28f, FontStyles.Bold, Cream, TextAlignmentOptions.MidlineLeft);
         PrefHeight(price.gameObject, 32f);
-        var hint = Label(visualGo.transform, "Hint", food.Hint, 16f, 22f, FontStyles.Normal, Cream, TextAlignmentOptions.Center);
-        PrefHeight(hint.gameObject, 28f);
-        return SlimButton(visualGo.transform, "BuyButton", "Купить", Buy, Ink, 52f);
+        var effect = Label(visualGo.transform, "Effect", food.EffectText, 18f, 26f, FontStyles.Normal, Cream, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(effect.gameObject, 30f);
+        var category = Label(visualGo.transform, "Category", food.CategoryText, 18f, 26f, FontStyles.Normal, Muted, TextAlignmentOptions.MidlineLeft);
+        PrefHeight(category.gameObject, 30f);
+        Button buy = SlimButton(visualGo.transform, "BuyButton", "Купить", Buy, Ink, 56f);
+        buy.gameObject.AddComponent<LevelSelectScrollRelay>();
+        return buy;
     }
 
     static void Stretch(GameObject go, Transform parent)
@@ -157,7 +163,7 @@ public static class SnackOverlayFactory
         rt.offsetMax = Vector2.zero;
     }
 
-    static void Paint(GameObject go, Color color, bool raycast)
+    static Image Paint(GameObject go, Color color, bool raycast)
     {
         var image = go.GetComponent<Image>();
         if (image == null)
@@ -165,9 +171,11 @@ public static class SnackOverlayFactory
             image = go.AddComponent<Image>();
         }
 
+        image.sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
+        image.type = Image.Type.Sliced;
         image.color = color;
         image.raycastTarget = raycast;
-        image.type = Image.Type.Simple;
+        return image;
     }
 
     static void Column(GameObject go, RectOffset padding, float spacing, TextAnchor align)

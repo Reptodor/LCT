@@ -207,6 +207,7 @@ public static class PetRoom
         }
 
         LivingFurnish.Install(house);
+        ShopCheckout.RestoreFurniture();
         return true;
     }
 

@@ -18,11 +18,11 @@ public class SnackShopView : MonoBehaviour
 
     bool _uiBound;
     bool _busy;
-    Action<FoodItem> _onBought;
+    Action<ShopItem> _onBought;
 
-    public bool IsReady => _root != null && _buyButtons != null && _buyButtons.Length == FoodCatalog.All.Length;
+    public bool IsReady => _root != null && _buyButtons != null && _buyButtons.Length == ShopCatalog.Food.Length;
 
-    public void Bind(Action<FoodItem> onBought)
+    public void Bind(Action<ShopItem> onBought)
     {
         _onBought = onBought;
     }
@@ -91,7 +91,7 @@ public class SnackShopView : MonoBehaviour
 
         if (_status != null)
         {
-            _status.text = "Выбери еду. Дороже — сытнее.";
+            _status.text = "Выбери еду";
         }
 
         RefreshAffordability();
@@ -164,13 +164,13 @@ public class SnackShopView : MonoBehaviour
 
     void OnBuy(int index)
     {
-        if (index < 0 || index >= FoodCatalog.All.Length)
+        if (index < 0 || index >= ShopCatalog.Food.Length)
         {
             return;
         }
 
-        FoodItem food = FoodCatalog.All[index];
-        if (!PetActions.TryBuyFood(GameSession.State, food.Cost, food.Hunger))
+        ShopItem food = ShopCatalog.Food[index];
+        if (!GameSession.IsReady || !ShopCheckout.TryPay(GameSession.State, food))
         {
             if (_status != null)
             {
@@ -183,7 +183,7 @@ public class SnackShopView : MonoBehaviour
 
         if (_status != null)
         {
-            _status.text = "Куплено: " + food.Title + "  ·  +" + food.Hunger + " сытости";
+            _status.text = "Куплено: " + food.Title + "  ·  −" + food.Cost + " монет";
         }
 
         if (_onBought != null)
@@ -200,7 +200,7 @@ public class SnackShopView : MonoBehaviour
         int coins = state != null ? state.coins : 0;
         if (_coins != null)
         {
-            _coins.text = "Монеты: " + coins;
+            _coins.text = "На счету: " + coins;
         }
 
         if (_buyButtons == null)
@@ -208,11 +208,11 @@ public class SnackShopView : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < _buyButtons.Length && i < FoodCatalog.All.Length; i++)
+        for (int i = 0; i < _buyButtons.Length && i < ShopCatalog.Food.Length; i++)
         {
             if (_buyButtons[i] != null)
             {
-                _buyButtons[i].interactable = coins >= FoodCatalog.All[i].Cost;
+                _buyButtons[i].interactable = coins >= ShopCatalog.Food[i].Cost;
             }
         }
     }
