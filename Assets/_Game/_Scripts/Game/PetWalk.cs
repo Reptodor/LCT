@@ -59,6 +59,34 @@ public class PetWalk : MonoBehaviour
         }
     }
 
+    public Vector3 RoomCenter => _rooms.Length > 0 ? _rooms[_roomIndex] : transform.position;
+
+    public float RoomReach => _rooms.Length > 0 ? Mathf.Max(1.35f, _roomWidths[_roomIndex] * 0.28f) : 1.8f;
+
+    public bool Contains(Vector3 point)
+    {
+        if (_rooms.Length == 0)
+        {
+            return true;
+        }
+
+        int best = 0;
+        float bestDist = float.MaxValue;
+        for (int i = 0; i < _rooms.Length; i++)
+        {
+            float dx = point.x - _rooms[i].x;
+            float dz = point.z - _rooms[i].z;
+            float dist = dx * dx + dz * dz;
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = i;
+            }
+        }
+
+        return best == _roomIndex;
+    }
+
     public static void Attach(GameObject pet, Camera cam, Vector3[] rooms, float[] viewWidths, int startIndex, string[] roomIds)
     {
         var walk = pet.GetComponent<PetWalk>();
@@ -105,6 +133,10 @@ public class PetWalk : MonoBehaviour
         _camMoving = false;
         FitZoom(true);
         ApplyCamera();
+        if (GetComponent<PetWander>() == null)
+        {
+            gameObject.AddComponent<PetWander>();
+        }
     }
 
     void Update()

@@ -182,6 +182,7 @@ public static class PetRoom
 
         var rooms = foci.ToArray();
         var roomWidths = widths.ToArray();
+        PetWander.BuildNav(house);
         if (pet != null)
         {
             PetWalk.Attach(pet, cam, rooms, roomWidths, start, names.ToArray());

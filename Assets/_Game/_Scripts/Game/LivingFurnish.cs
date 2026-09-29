@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public static class LivingFurnish
 {
@@ -80,10 +81,44 @@ public static class LivingFurnish
 
         for (int i = 0; i < found.Count; i++)
         {
+            EnsureBlocker(found[i]);
             found[i].SetActive(visible);
         }
 
         return true;
+    }
+
+    static void EnsureBlocker(GameObject go)
+    {
+        if (go.GetComponentInChildren<NavMeshObstacle>(true) != null)
+        {
+            return;
+        }
+
+        var renderers = go.GetComponentsInChildren<Renderer>(true);
+        if (renderers.Length == 0)
+        {
+            return;
+        }
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        var blocker = new GameObject("Block");
+        blocker.transform.SetParent(go.transform, true);
+        blocker.transform.SetPositionAndRotation(bounds.center, Quaternion.identity);
+        var obstacle = blocker.AddComponent<NavMeshObstacle>();
+        obstacle.shape = NavMeshObstacleShape.Box;
+        obstacle.carving = true;
+        obstacle.carveOnlyStationary = true;
+        Vector3 lossy = blocker.transform.lossyScale;
+        obstacle.size = new Vector3(
+            bounds.size.x * 0.82f / Mathf.Max(0.001f, Mathf.Abs(lossy.x)),
+            bounds.size.y * 0.82f / Mathf.Max(0.001f, Mathf.Abs(lossy.y)),
+            bounds.size.z * 0.82f / Mathf.Max(0.001f, Mathf.Abs(lossy.z)));
     }
 
     static Transform FindRoom(string name)
