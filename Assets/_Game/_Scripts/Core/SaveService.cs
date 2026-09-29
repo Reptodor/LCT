@@ -5,6 +5,7 @@ using UnityEngine;
 public sealed class SaveService
 {
     public const string FileName = "monetok-save.json";
+    public const string ProfilesFolder = "profiles";
 
     readonly string _filePath;
 
@@ -21,6 +22,79 @@ public sealed class SaveService
     public static SaveService CreateDefault()
     {
         return new SaveService(Application.persistentDataPath);
+    }
+
+    public static SaveService ForProfile(string directory, string profileId)
+    {
+        return new SaveService(ProfileDirectory(directory, profileId));
+    }
+
+    public static string ProfileDirectory(string directory, string profileId)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            throw new ArgumentException("Save directory is required.", nameof(directory));
+        }
+
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            throw new ArgumentException("Profile id is required.", nameof(profileId));
+        }
+
+        return Path.Combine(directory, ProfilesFolder, ToFileKey(profileId));
+    }
+
+    public static string ToFileKey(string profileId)
+    {
+        string key = (profileId ?? string.Empty).Trim().ToLowerInvariant();
+        char[] invalid = Path.GetInvalidFileNameChars();
+        var builder = new System.Text.StringBuilder(key.Length);
+        for (int i = 0; i < key.Length; i++)
+        {
+            char c = key[i];
+            bool bad = c < 32 || Array.IndexOf(invalid, c) >= 0;
+            builder.Append(bad ? '_' : c);
+        }
+
+        return builder.Length == 0 ? "profile" : builder.ToString();
+    }
+
+    // The old install kept one save for the whole device. The first profile to sign in takes it.
+    public static void AdoptLegacySave(string directory, string profileId, string reservedForProfileId = null)
+    {
+        string profileFile = Path.Combine(ProfileDirectory(directory, profileId), FileName);
+        if (File.Exists(profileFile))
+        {
+            return;
+        }
+
+        string legacy = Path.Combine(directory, FileName);
+        string marker = Path.Combine(directory, ProfilesFolder, ".legacy-claimed");
+        if (!File.Exists(legacy) || File.Exists(marker))
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(reservedForProfileId)
+            && ToFileKey(reservedForProfileId) != ToFileKey(profileId))
+        {
+            return;
+        }
+
+        string profileDirectory = Path.GetDirectoryName(profileFile);
+        if (!string.IsNullOrEmpty(profileDirectory))
+        {
+            Directory.CreateDirectory(profileDirectory);
+        }
+
+        File.Copy(legacy, profileFile);
+        string markerDirectory = Path.GetDirectoryName(marker);
+        if (!string.IsNullOrEmpty(markerDirectory))
+        {
+            Directory.CreateDirectory(markerDirectory);
+        }
+
+        File.WriteAllText(marker, ToFileKey(profileId));
     }
 
     public GameState LoadOrCreateDefault()

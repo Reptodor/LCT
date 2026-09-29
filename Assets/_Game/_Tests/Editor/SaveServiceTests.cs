@@ -16,6 +16,7 @@ public class SaveServiceTests
     [TearDown]
     public void TearDown()
     {
+        GameSession.ResetForTests();
         if (Directory.Exists(_dir))
         {
             Directory.Delete(_dir, true);
@@ -71,5 +72,39 @@ public class SaveServiceTests
         Assert.AreEqual(40, state.coins);
         Assert.IsNotNull(state.levelProgress);
         Assert.AreEqual(0, state.levelProgress.Length);
+    }
+
+    [Test]
+    public void BindProfile_KeepsProgressSeparatePerProfile()
+    {
+        GameSession.BindProfile(_dir, "a@mail.com");
+        GameSession.State.coins = 15;
+
+        GameSession.BindProfile(_dir, "b@mail.com");
+        Assert.AreEqual(100, GameSession.State.coins);
+        GameSession.State.coins = 80;
+
+        GameSession.BindProfile(_dir, "a@mail.com");
+        Assert.AreEqual(15, GameSession.State.coins);
+
+        GameSession.Unload();
+        GameSession.BindProfile(_dir, "b@mail.com");
+        Assert.AreEqual(80, GameSession.State.coins);
+    }
+
+    [Test]
+    public void BindProfile_GivesLegacyDeviceSaveOnlyToItsOwner()
+    {
+        string json = "{\"petName\":\"Финашка\",\"coins\":40,\"hunger\":70,\"lastSaveUtc\":\"x\"}";
+        File.WriteAllText(Path.Combine(_dir, SaveService.FileName), json);
+
+        GameSession.BindProfile(_dir, "new@mail.com", "old@mail.com");
+        Assert.AreEqual(100, GameSession.State.coins);
+
+        GameSession.BindProfile(_dir, "old@mail.com", "old@mail.com");
+        Assert.AreEqual(40, GameSession.State.coins);
+
+        GameSession.BindProfile(_dir, "new@mail.com", "old@mail.com");
+        Assert.AreEqual(100, GameSession.State.coins);
     }
 }

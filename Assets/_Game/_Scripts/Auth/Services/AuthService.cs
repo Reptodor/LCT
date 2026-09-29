@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 public interface IAuthService
@@ -8,42 +11,68 @@ public interface IAuthService
     bool LoginUser(string email, string password);
     void SaveDeviceId(string deviceId);
     bool IsDeviceRegistered();
+    string ActiveProfileId { get; }
+    string LegacySaveOwner { get; }
+    void Logout();
 }
 
 public sealed class AuthService : IAuthService
 {
-    private const string KeyEmail = "auth_email";
-    private const string KeyPassword = "auth_password";
-    private const string KeyDeviceId = "device_id";
-    
-    // Вынесем тримминг и простые проверки в хелперы
-    private static string Sanitize(string s) => (s ?? string.Empty).Trim();
+    const string KeyEmail = "auth_email";
+    const string KeyPassword = "auth_password";
+    const string KeyDeviceId = "device_id";
+    const string AccountsFileName = "accounts.json";
+
+    readonly string _accountsPath;
+    AccountRegistry _registry;
+
+    public AuthService()
+        : this(
+            Path.Combine(Application.persistentDataPath, AccountsFileName),
+            PlayerPrefs.GetString(KeyEmail, string.Empty),
+            PlayerPrefs.GetString(KeyPassword, string.Empty))
+    {
+    }
+
+    public AuthService(string accountsPath)
+        : this(accountsPath, string.Empty, string.Empty)
+    {
+    }
+
+    public AuthService(string accountsPath, string legacyEmail, string legacyPassword)
+    {
+        if (string.IsNullOrWhiteSpace(accountsPath))
+        {
+            throw new ArgumentException("Accounts file path is required.", nameof(accountsPath));
+        }
+
+        _accountsPath = accountsPath;
+        _registry = Load(legacyEmail, legacyPassword);
+    }
+
+    public string ActiveProfileId => _registry.activeEmail ?? string.Empty;
+
+    public string LegacySaveOwner => _registry.legacyOwnerEmail ?? string.Empty;
 
     public bool HasSavedCredentials()
     {
-        return PlayerPrefs.HasKey(KeyEmail) && PlayerPrefs.HasKey(KeyPassword);
+        return _registry.accounts != null && _registry.accounts.Length > 0;
     }
 
     public UserCredentials GetSavedCredentials()
     {
-        if (!HasSavedCredentials())
+        StoredAccount account = Find(ActiveProfileId);
+        if (account == null)
         {
             return null;
         }
 
-        string email = PlayerPrefs.GetString(KeyEmail, string.Empty);
-        string password = PlayerPrefs.GetString(KeyPassword, string.Empty);
-        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
-        {
-            return null;
-        }
-
-        return new UserCredentials(email, password);
+        return new UserCredentials(account.email, account.password);
     }
 
     public bool RegisterUser(string email, string password)
     {
-        email = Sanitize(email);
+        email = NormalizeEmail(email);
         password = Sanitize(password);
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
         {
@@ -51,35 +80,47 @@ public sealed class AuthService : IAuthService
             return false;
         }
 
-        PlayerPrefs.SetString(KeyEmail, email);
-        PlayerPrefs.SetString(KeyPassword, password);
-        PlayerPrefs.Save();
+        if (Find(email) != null)
+        {
+            Debug.LogWarning("[Auth] Такой профиль уже есть");
+            return false;
+        }
+
+        var list = new List<StoredAccount>();
+        if (_registry.accounts != null)
+        {
+            list.AddRange(_registry.accounts);
+        }
+
+        list.Add(new StoredAccount { email = email, password = password });
+        _registry.accounts = list.ToArray();
+        _registry.activeEmail = email;
+        Write(_registry);
         Debug.Log($"[Auth] Регистрация успешна: {email}");
         return true;
     }
 
     public bool LoginUser(string email, string password)
     {
-        var saved = GetSavedCredentials();
-        if (saved == null)
+        email = NormalizeEmail(email);
+        password = Sanitize(password);
+        StoredAccount account = Find(email);
+        if (account == null || account.password != password)
         {
-            Debug.LogWarning("[Auth] Нет зарегистрированного пользователя");
+            Debug.LogWarning("[Auth] Ошибка входа: неверные данные");
             return false;
         }
 
-        email = Sanitize(email);
-        password = Sanitize(password);
-        bool ok = saved.Email == email && saved.Password == password;
-        if (ok)
-        {
-            Debug.Log($"[Auth] Вход успешен: {email}");
-        }
-        else
-        {
-            Debug.LogWarning("[Auth] Ошибка входа: неверные данные");
-        }
+        _registry.activeEmail = account.email;
+        Write(_registry);
+        Debug.Log($"[Auth] Вход успешен: {email}");
+        return true;
+    }
 
-        return ok;
+    public void Logout()
+    {
+        _registry.activeEmail = string.Empty;
+        Write(_registry);
     }
 
     public void SaveDeviceId(string deviceId)
@@ -102,6 +143,134 @@ public sealed class AuthService : IAuthService
         {
             Debug.Log("[Auth] Игрок уже зарегистрирован (устройство распознано)");
         }
+
         return registered;
     }
+
+    StoredAccount Find(string email)
+    {
+        if (string.IsNullOrEmpty(email) || _registry.accounts == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < _registry.accounts.Length; i++)
+        {
+            StoredAccount account = _registry.accounts[i];
+            if (account != null && account.email == email)
+            {
+                return account;
+            }
+        }
+
+        return null;
+    }
+
+    AccountRegistry Load(string legacyEmail, string legacyPassword)
+    {
+        AccountRegistry registry = new AccountRegistry();
+        if (File.Exists(_accountsPath))
+        {
+            try
+            {
+                AccountRegistry loaded = JsonUtility.FromJson<AccountRegistry>(File.ReadAllText(_accountsPath));
+                if (loaded != null)
+                {
+                    registry = loaded;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Auth] Accounts unreadable, starting empty: {ex.Message}");
+            }
+        }
+
+        if (registry.accounts == null)
+        {
+            registry.accounts = new StoredAccount[0];
+        }
+
+        if (registry.activeEmail == null)
+        {
+            registry.activeEmail = string.Empty;
+        }
+
+        if (registry.legacyOwnerEmail == null)
+        {
+            registry.legacyOwnerEmail = string.Empty;
+        }
+
+        if (registry.accounts.Length == 0)
+        {
+            ImportLegacy(registry, legacyEmail, legacyPassword);
+        }
+
+        return registry;
+    }
+
+    void ImportLegacy(AccountRegistry registry, string legacyEmail, string legacyPassword)
+    {
+        string email = NormalizeEmail(legacyEmail);
+        string password = Sanitize(legacyPassword);
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+        {
+            return;
+        }
+
+        registry.accounts = new[]
+        {
+            new StoredAccount { email = email, password = password }
+        };
+        registry.activeEmail = string.Empty;
+        if (string.IsNullOrEmpty(registry.legacyOwnerEmail))
+        {
+            registry.legacyOwnerEmail = email;
+        }
+
+        Write(registry);
+    }
+
+    void Write(AccountRegistry registry)
+    {
+        try
+        {
+            string directory = Path.GetDirectoryName(_accountsPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.WriteAllText(_accountsPath, JsonUtility.ToJson(registry, true));
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[Auth] Failed to write accounts: {ex.Message}");
+        }
+    }
+
+    static string NormalizeEmail(string email)
+    {
+        return Sanitize(email).ToLowerInvariant();
+    }
+
+    static string Sanitize(string value)
+    {
+        return (value ?? string.Empty).Trim();
+    }
+
+}
+
+[Serializable]
+public class AccountRegistry
+{
+    public StoredAccount[] accounts = new StoredAccount[0];
+    public string activeEmail = "";
+    public string legacyOwnerEmail = "";
+}
+
+[Serializable]
+public class StoredAccount
+{
+    public string email = "";
+    public string password = "";
 }

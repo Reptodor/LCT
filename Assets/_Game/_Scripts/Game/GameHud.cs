@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameHud : MonoBehaviour
@@ -42,6 +43,7 @@ public class GameHud : MonoBehaviour
         EnsureSnackShop();
         EnsureWardrobeButton();
         EnsureSavingsButton();
+        EnsureLogoutButton();
         HideRoomSwitch();
         Refresh();
         OpenSavingsIfNeeded();
@@ -195,6 +197,74 @@ public class GameHud : MonoBehaviour
 
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(OnSavings);
+    }
+
+    void EnsureLogoutButton()
+    {
+        GameObject top = GameObject.Find("TopBar");
+        Transform parent = top != null ? top.transform : FindHudCanvas() != null ? FindHudCanvas().transform : null;
+        if (parent == null)
+        {
+            return;
+        }
+
+        Transform existing = parent.Find("LogoutButton");
+        Button button;
+        if (existing != null)
+        {
+            button = existing.GetComponent<Button>();
+        }
+        else
+        {
+            var go = new GameObject("LogoutButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.anchoredPosition = new Vector2(-8f, -8f);
+            rect.sizeDelta = new Vector2(168f, 64f);
+            go.GetComponent<LayoutElement>().ignoreLayout = true;
+
+            var image = go.GetComponent<Image>();
+            image.color = new Color(0.45f, 0.18f, 0.16f, 1f);
+            button = go.GetComponent<Button>();
+            button.targetGraphic = image;
+
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            labelGo.transform.SetParent(go.transform, false);
+            var labelRect = labelGo.GetComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+            var label = labelGo.AddComponent<TextMeshProUGUI>();
+            label.text = "Выйти";
+            label.alignment = TextAlignmentOptions.Center;
+            label.fontSize = 28f;
+            label.color = new Color(1f, 0.96f, 0.88f, 1f);
+            label.raycastTarget = false;
+            if (_petName != null)
+            {
+                label.font = _petName.font;
+            }
+        }
+
+        if (button == null)
+        {
+            return;
+        }
+
+        button.transform.SetAsLastSibling();
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(OnLogout);
+    }
+
+    void OnLogout()
+    {
+        GameSession.Unload();
+        new AuthService().Logout();
+        SceneManager.LoadScene(BootController.ProfileSetupSceneName);
     }
 
     void OpenSavingsIfNeeded()

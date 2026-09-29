@@ -24,8 +24,7 @@ public class BootController : MonoBehaviour
         _loading?.SetStatus("Запуск…");
         yield return Fill(0.2f, 0.4f);
 
-        _loading?.SetStatus("Читаем копилку…");
-        GameSession.Initialize(SaveService.CreateDefault());
+        _loading?.SetStatus("Готовим профили…");
         yield return Fill(0.55f, 0.45f);
 
         _loading?.SetStatus("Почти готово…");

@@ -192,13 +192,23 @@ namespace LCT.MiniGames.Shop
         // ===== ЗАГРУЗКА / СОХРАНЕНИЕ =====
         void LoadProgress()
         {
-            totalSaved = PlayerPrefs.GetInt("TotalSaved", 0);
+            totalSaved = PlayerPrefs.GetInt(ProgressKey(), 0);
         }
 
         void SaveProgress()
         {
-            PlayerPrefs.SetInt("TotalSaved", totalSaved);
+            PlayerPrefs.SetInt(ProgressKey(), totalSaved);
             PlayerPrefs.Save();
+        }
+
+        static string ProgressKey()
+        {
+            if (string.IsNullOrEmpty(GameSession.ProfileId))
+            {
+                return "TotalSaved";
+            }
+
+            return "TotalSaved_" + SaveService.ToFileKey(GameSession.ProfileId);
         }
 
         // ===== ЗАПУСК МАГАЗИНА =====
