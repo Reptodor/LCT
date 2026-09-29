@@ -7,6 +7,7 @@ public class SavingsBankTests
     {
         GameState state = GameState.CreateDefault();
         state.coins = 100;
+        SavingsBank.Select(state, "bike");
 
         int paid = SavingsBank.Deposit(state, "bike", 500, 25);
 
@@ -21,6 +22,7 @@ public class SavingsBankTests
     {
         GameState state = GameState.CreateDefault();
         state.coins = 100;
+        SavingsBank.Select(state, "headphones");
 
         int paid = SavingsBank.Deposit(state, "headphones", 30, 25);
         int extra = SavingsBank.Deposit(state, "headphones", 30, 25);
@@ -36,6 +38,7 @@ public class SavingsBankTests
     {
         GameState state = GameState.CreateDefault();
         state.coins = 10;
+        SavingsBank.Select(state, "trip");
 
         int paid = SavingsBank.Deposit(state, "trip", 800, 50);
 
@@ -53,5 +56,30 @@ public class SavingsBankTests
 
         Assert.AreEqual("trip", state.savingsGoalId);
         Assert.AreEqual(0, SavingsBank.Saved(state, "trip"));
+    }
+
+    [Test]
+    public void Deposit_FailsUntilTheGoalIsConfirmed()
+    {
+        GameState state = GameState.CreateDefault();
+        state.coins = 100;
+
+        int paid = SavingsBank.Deposit(state, "bike", 500, 25);
+
+        Assert.AreEqual(0, paid);
+        Assert.AreEqual(100, state.coins);
+    }
+
+    [Test]
+    public void CanSwitchGoal_OnlyAfterTheConfirmedGoalIsFilled()
+    {
+        GameState state = GameState.CreateDefault();
+        SavingsBank.Select(state, "bike");
+
+        Assert.IsFalse(SavingsBank.CanSwitchGoal(state, 500));
+
+        SavingsBank.Deposit(state, "bike", 500, 500);
+
+        Assert.IsTrue(SavingsBank.CanSwitchGoal(state, 500));
     }
 }

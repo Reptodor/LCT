@@ -72,7 +72,7 @@ public sealed class SavingsWindow : MonoBehaviour
 
         if (_depositButton != null)
         {
-            _depositButton.onClick.RemoveListener(Deposit);
+            _depositButton.onClick.RemoveListener(OnPrimary);
         }
     }
 
@@ -96,7 +96,7 @@ public sealed class SavingsWindow : MonoBehaviour
 
     public void Close()
     {
-        if (_closing || !gameObject.activeInHierarchy)
+        if (MustStay() || _closing || !gameObject.activeInHierarchy)
         {
             return;
         }
@@ -126,7 +126,7 @@ public sealed class SavingsWindow : MonoBehaviour
 
         if (_depositButton != null)
         {
-            _depositButton.onClick.AddListener(Deposit);
+            _depositButton.onClick.AddListener(OnPrimary);
         }
     }
 
@@ -142,10 +142,7 @@ public sealed class SavingsWindow : MonoBehaviour
         if (_catalog.TryGet(savedId, out SavingsGoalCatalog.Goal saved))
         {
             _goalId = saved.Id;
-            return;
         }
-
-        _goalId = _catalog.Get(0).Id;
     }
 
     private void RebuildGoals()
@@ -182,19 +179,63 @@ public sealed class SavingsWindow : MonoBehaviour
 
     private void Choose(string goalId)
     {
-        if (string.IsNullOrEmpty(goalId) || goalId == _goalId)
+        if (string.IsNullOrEmpty(goalId) || goalId == _goalId || !CanSwitch())
+        {
+            return;
+        }
+
+        if (_catalog == null || !_catalog.TryGet(goalId, out SavingsGoalCatalog.Goal goal))
+        {
+            return;
+        }
+
+        if (GameSession.IsReady && SavingsBank.IsFilled(GameSession.State, goal.Id, goal.Target))
         {
             return;
         }
 
         _goalId = goalId;
-        if (GameSession.IsReady)
+        Refresh(true);
+    }
+
+    private void OnPrimary()
+    {
+        if (IsChoosing())
         {
-            SavingsBank.Select(GameSession.State, goalId);
-            GameSession.Persist();
+            Confirm();
+            return;
         }
 
-        Refresh(true);
+        Deposit();
+    }
+
+    private void Confirm()
+    {
+        if (!GameSession.IsReady || _catalog == null || !_catalog.TryGet(_goalId, out SavingsGoalCatalog.Goal goal))
+        {
+            SetStatus("Выбери цель");
+            Refresh(false);
+            return;
+        }
+
+        if (SavingsBank.IsFilled(GameSession.State, goal.Id, goal.Target))
+        {
+            SetStatus("Эта цель уже собрана");
+            return;
+        }
+
+        SavingsGoalCatalog.Goal current = default;
+        bool hasCurrent = _catalog.TryGet(GameSession.State.savingsGoalId, out current);
+        if (hasCurrent && !SavingsBank.CanSwitchGoal(GameSession.State, current.Target) && current.Id != goal.Id)
+        {
+            return;
+        }
+
+        SavingsBank.Select(GameSession.State, goal.Id);
+        GameSession.Persist();
+        Refresh(false);
+        SetStatus("Цель выбрана");
+        SetInput(true);
     }
 
     private void Deposit()
@@ -208,15 +249,15 @@ public sealed class SavingsWindow : MonoBehaviour
         int paid = SavingsBank.Deposit(GameSession.State, goal.Id, goal.Target, goal.Deposit);
         if (paid <= 0)
         {
+            Refresh(false);
             int saved = SavingsBank.Saved(GameSession.State, goal.Id);
             SetStatus(saved >= goal.Target ? "Цель уже собрана" : "Не хватает монет");
-            Refresh(false);
             return;
         }
 
         GameSession.Persist();
-        SetStatus("В копилку +" + paid);
         Refresh(true);
+        SetStatus("В копилку +" + paid);
         BalanceChanged?.Invoke();
     }
 
@@ -230,12 +271,15 @@ public sealed class SavingsWindow : MonoBehaviour
 
         SavingsGoalCatalog.Goal goal = default;
         bool hasGoal = _catalog != null && _catalog.TryGet(_goalId, out goal);
+        bool choosing = IsChoosing();
+        bool canSwitch = CanSwitch();
         int saved = hasGoal && GameSession.IsReady ? SavingsBank.Saved(GameSession.State, goal.Id) : 0;
         int target = hasGoal ? goal.Target : 1;
         int room = Mathf.Max(0, target - saved);
         int charge = hasGoal ? Mathf.Min(goal.Deposit, room) : 0;
         bool complete = hasGoal && room <= 0;
-        bool canPay = hasGoal && !complete && coins >= charge && charge > 0;
+        bool canPay = !choosing && hasGoal && !complete && coins >= charge && charge > 0;
+        bool canConfirm = choosing && hasGoal && !complete;
 
         if (_goalTitle != null)
         {
@@ -267,11 +311,11 @@ public sealed class SavingsWindow : MonoBehaviour
 
         if (_depositLabel != null)
         {
-            if (!hasGoal)
+            if (choosing)
             {
-                _depositLabel.text = "Пополнить";
+                _depositLabel.text = "Подтвердить";
             }
-            else if (complete)
+            else if (!hasGoal || complete)
             {
                 _depositLabel.text = "Цель собрана";
             }
@@ -283,7 +327,20 @@ public sealed class SavingsWindow : MonoBehaviour
 
         if (_depositButton != null)
         {
-            _depositButton.interactable = canPay;
+            _depositButton.interactable = canPay || canConfirm;
+        }
+
+        if (MustStay() || choosing)
+        {
+            SetStatus(canConfirm ? "Нажми «Подтвердить»" : "Выбери цель и нажми «Подтвердить»");
+        }
+        else if (complete)
+        {
+            SetStatus("Цель собрана. Выбери следующую");
+        }
+        else
+        {
+            SetStatus("Новую цель можно выбрать после этой");
         }
 
         for (int i = 0; i < _rows.Count; i++)
@@ -295,8 +352,68 @@ public sealed class SavingsWindow : MonoBehaviour
 
             SavingsGoalCatalog.Goal rowGoal = _catalog.Get(i);
             int rowSaved = GameSession.IsReady ? SavingsBank.Saved(GameSession.State, rowGoal.Id) : 0;
+            bool rowFilled = GameSession.IsReady && SavingsBank.IsFilled(GameSession.State, rowGoal.Id, rowGoal.Target);
             _rows[i].Set(rowGoal.Title, rowSaved + " / " + rowGoal.Target, rowGoal.Id == _goalId);
+            if (_rows[i].Button != null)
+            {
+                _rows[i].Button.interactable = canSwitch && !rowFilled;
+            }
         }
+    }
+
+    private bool MustStay()
+    {
+        if (!GameSession.IsReady || SavingsBank.HasConfirmedGoal(GameSession.State))
+        {
+            return false;
+        }
+
+        return _catalog != null && _catalog.Count > 0;
+    }
+
+    private bool CanSwitch()
+    {
+        if (!GameSession.IsReady || _catalog == null)
+        {
+            return false;
+        }
+
+        if (!SavingsBank.HasConfirmedGoal(GameSession.State))
+        {
+            return true;
+        }
+
+        if (!_catalog.TryGet(GameSession.State.savingsGoalId, out SavingsGoalCatalog.Goal current))
+        {
+            return true;
+        }
+
+        return SavingsBank.CanSwitchGoal(GameSession.State, current.Target);
+    }
+
+    private bool IsChoosing()
+    {
+        if (!GameSession.IsReady || _catalog == null)
+        {
+            return false;
+        }
+
+        if (!SavingsBank.HasConfirmedGoal(GameSession.State))
+        {
+            return true;
+        }
+
+        if (!_catalog.TryGet(GameSession.State.savingsGoalId, out SavingsGoalCatalog.Goal current))
+        {
+            return true;
+        }
+
+        if (!SavingsBank.IsFilled(GameSession.State, current.Id, current.Target))
+        {
+            return false;
+        }
+
+        return !string.IsNullOrEmpty(_goalId) && _goalId != current.Id;
     }
 
     private void SetStatus(string text)
@@ -429,14 +546,15 @@ public sealed class SavingsWindow : MonoBehaviour
 
     private void SetInput(bool enabled)
     {
+        bool canLeave = enabled && !MustStay();
         if (_dimButton != null)
         {
-            _dimButton.interactable = enabled;
+            _dimButton.interactable = canLeave;
         }
 
         if (_closeButton != null)
         {
-            _closeButton.interactable = enabled;
+            _closeButton.interactable = canLeave;
         }
 
         if (!enabled && _depositButton != null)

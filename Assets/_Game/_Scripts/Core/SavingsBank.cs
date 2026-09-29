@@ -13,6 +13,26 @@ public static class SavingsBank
         return Mathf.Max(0, state.savings[index].saved);
     }
 
+    public static bool HasConfirmedGoal(GameState state)
+    {
+        return state != null && !string.IsNullOrEmpty(state.savingsGoalId);
+    }
+
+    public static bool IsFilled(GameState state, string goalId, int target)
+    {
+        return target > 0 && Saved(state, goalId) >= target;
+    }
+
+    public static bool CanSwitchGoal(GameState state, int confirmedTarget)
+    {
+        if (!HasConfirmedGoal(state))
+        {
+            return true;
+        }
+
+        return IsFilled(state, state.savingsGoalId, confirmedTarget);
+    }
+
     public static void Select(GameState state, string goalId)
     {
         if (state == null)
@@ -26,6 +46,11 @@ public static class SavingsBank
     public static int Deposit(GameState state, string goalId, int target, int step)
     {
         if (state == null || string.IsNullOrEmpty(goalId) || target <= 0 || step <= 0)
+        {
+            return 0;
+        }
+
+        if (state.savingsGoalId != goalId)
         {
             return 0;
         }
@@ -45,7 +70,6 @@ public static class SavingsBank
 
         state.coins -= charge;
         Write(state, goalId, saved + charge);
-        state.savingsGoalId = goalId;
         return charge;
     }
 

@@ -44,6 +44,7 @@ public class GameHud : MonoBehaviour
         EnsureSavingsButton();
         HideRoomSwitch();
         Refresh();
+        OpenSavingsIfNeeded();
     }
 
     void OnApplicationPause(bool pauseStatus)
@@ -194,6 +195,16 @@ public class GameHud : MonoBehaviour
 
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(OnSavings);
+    }
+
+    void OpenSavingsIfNeeded()
+    {
+        if (!GameSession.IsReady || SavingsBank.HasConfirmedGoal(GameSession.State))
+        {
+            return;
+        }
+
+        OnSavings();
     }
 
     void OnSavings()
